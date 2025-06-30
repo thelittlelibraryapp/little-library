@@ -18,7 +18,6 @@ export async function GET(request: NextRequest) {
   try {
     const supabase = createSupabaseClient();
     
-    // Get user from auth header (simplified for now)
     const authHeader = request.headers.get('authorization');
     if (!authHeader) {
       return NextResponse.json({ error: 'No authorization header' }, { status: 401 });
@@ -31,12 +30,23 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
-    // Fetch books for this user
+    // Get user's library first
+    const { data: library } = await supabase
+      .from('libraries')
+      .select('id')
+      .eq('owner_id', user.id)
+      .single();
+
+    if (!library) {
+      return NextResponse.json({ success: true, books: [] });
+    }
+
+    // Fetch books for this library
     const { data: books, error } = await supabase
       .from('books')
       .select('*')
-      .eq('library_id', user.id)
-      .order('created_at', { ascending: false });
+      .eq('library_id', library.id)
+      .order('added_at', { ascending: false });
 
     if (error) {
       console.error('Database error:', error);
@@ -72,6 +82,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
 
+    // Check if user has a library, if not create one
+    let { data: library } = await supabase
+      .from('libraries')
+      .select('id')
+      .eq('owner_id', user.id)
+      .single();
+
+    if (!library) {
+      // Create library for user
+      const { data: newLibrary, error: libraryError } = await supabase
+        .from('libraries')
+        .insert({
+          owner_id: user.id,
+          name: `${user.email}'s Library`,
+          description: 'My personal book collection'
+        })
+        .select('id')
+        .single();
+
+      if (libraryError) {
+        console.error('Library creation error:', libraryError);
+        return NextResponse.json({ error: 'Failed to create library' }, { status: 500 });
+      }
+      
+      library = newLibrary;
+    }
+
     // Get book data from request
     const bookData = await request.json();
     
@@ -80,7 +117,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Title and author are required' }, { status: 400 });
     }
 
-    // Insert new book
+    // Insert new book using the library ID
     const { data: book, error } = await supabase
       .from('books')
       .insert({
@@ -91,8 +128,7 @@ export async function POST(request: NextRequest) {
         publication_year: bookData.publicationYear,
         condition: bookData.condition || 'good',
         notes: bookData.notes,
-        library_id: user.id,
-        status: 'available'
+        library_id: library.id  // Use the library ID, not user ID
       })
       .select()
       .single();
