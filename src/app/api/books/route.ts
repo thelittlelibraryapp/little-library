@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
     const { data: books, error } = await supabase
       .from('books')
       .select('*')
-      .eq('owner_id', user.id)
+      .eq('library_id', user.id)
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
         publication_year: bookData.publicationYear,
         condition: bookData.condition || 'good',
         notes: bookData.notes,
-        owner_id: user.id,
+        library_id: user.id,
         status: 'available'
       })
       .select()

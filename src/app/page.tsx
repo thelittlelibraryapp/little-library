@@ -176,16 +176,21 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
         email,
         password,
       });
-
+  
       if (error) throw error;
-
+  
       if (data.user) {
+        // ADD THIS LINE - Store the auth token
+        if (data.session) {
+          localStorage.setItem('supabase_token', data.session.access_token);
+        }
+        
         const { data: userData, error: userError } = await supabase
           .from('users')
           .select('*')
           .eq('id', data.user.id)
           .single();
-
+  
         if (userData && !userError) {
           setUser({
             id: userData.id,
@@ -261,6 +266,7 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     await supabase.auth.signOut();
+    localStorage.removeItem('supabase_token'); // ADD THIS LINE
     setUser(null);
   };
 
