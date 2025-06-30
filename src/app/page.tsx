@@ -2244,7 +2244,7 @@ function MyLibrary() {
         throw new Error('Not authenticated');
       }
 
-      const response = await fetch(`/api/books/${bookId}`, {
+      const response = await fetch(`/api/books?id=${bookId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${session.access_token}`
