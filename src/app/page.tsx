@@ -385,7 +385,7 @@ function AuthForm() {
       <Card className="max-w-md w-full p-8">
         <div className="text-center mb-8">
           <BookOpen className="w-12 h-12 text-blue-600 mx-auto mb-4" />
-          <h2 className="text-3xl font-bold text-gray-900">Little Library</h2>
+          <h2 className="text-3xl font-bold text-gray-900">My Little Library</h2>
           <p className="text-gray-600">
             {isLogin ? 'Sign in to your account' : 'Create your account'}
           </p>
@@ -1139,6 +1139,7 @@ function Dashboard() {
 
   return (
     <div className="space-y-6">
+        <AlphaWarningCard />  {/* ADD THIS LINE */}
       {/* Welcome Header */}
       <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-lg p-6 text-white">
         <h1 className="text-2xl font-bold mb-2">
@@ -1249,7 +1250,111 @@ function Dashboard() {
     </div>
   );
 }
+// Alpha Warning Banner Component - Add this to your page.tsx
 
+function AlphaWarningBanner() {
+  const [isVisible, setIsVisible] = useState(() => {
+    // Check if user has dismissed the banner before
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('alpha-warning-dismissed') !== 'true';
+    }
+    return true;
+  });
+
+  const dismissBanner = () => {
+    setIsVisible(false);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('alpha-warning-dismissed', 'true');
+    }
+  };
+
+  if (!isVisible) return null;
+
+  return (
+    <div className="bg-red-600 text-white px-4 py-3 relative">
+      <div className="max-w-7xl mx-auto flex items-center justify-between">
+        <div className="flex items-center space-x-3">
+          <div className="bg-red-700 rounded-full p-1">
+            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <div>
+            <span className="font-semibold">⚠️ ALPHA BUILD WARNING</span>
+            <span className="ml-2">
+              This is an early development version of My Little Library. Features may be incomplete, data could be lost during updates, and functionality is subject to change without notice. Use for testing purposes only.
+            </span>
+          </div>
+        </div>
+        <button
+          onClick={dismissBanner}
+          className="text-red-200 hover:text-white ml-4 flex-shrink-0"
+          title="Dismiss warning"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Alpha Warning Card - Add this to your Dashboard component
+
+function AlphaWarningCard() {
+  const [isVisible, setIsVisible] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('alpha-dashboard-warning-dismissed') !== 'true';
+    }
+    return true;
+  });
+
+  const dismissCard = () => {
+    setIsVisible(false);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('alpha-dashboard-warning-dismissed', 'true');
+    }
+  };
+
+  if (!isVisible) return null;
+
+  return (
+    <Card className="p-6 bg-red-50 border-red-200 border-2 mb-6">
+      <div className="flex items-start justify-between">
+        <div className="flex items-start space-x-3">
+          <div className="bg-red-100 rounded-full p-2 flex-shrink-0">
+            <svg className="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+              <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+          </div>
+          <div className="flex-1">
+            <h3 className="text-lg font-semibold text-red-800 mb-2">
+              ⚠️ Alpha Build Notice
+            </h3>
+            <div className="text-red-700 space-y-2">
+              <p className="font-medium">This is an early development version with the following limitations:</p>
+              <ul className="list-disc list-inside space-y-1 text-sm">
+                <li><strong>Data Loss Risk:</strong> Your books and friend connections may be deleted during updates</li>
+                <li><strong>Feature Instability:</strong> Some functions may not work as expected</li>
+                <li><strong>Frequent Changes:</strong> Interface and functionality will change without notice</li>
+                <li><strong>No Data Backup:</strong> We do not guarantee data preservation</li>
+              </ul>
+              <p className="text-sm font-medium mt-3">
+                📋 <strong>Recommendation:</strong> Use this for testing and feedback only. Do not rely on this for important book cataloging yet.
+              </p>
+            </div>
+          </div>
+        </div>
+        <button
+          onClick={dismissCard}
+          className="text-red-400 hover:text-red-600 ml-4 flex-shrink-0"
+          title="Dismiss warning"
+        >
+          <X className="w-5 h-5" />
+        </button>
+      </div>
+    </Card>
+  );
+}
 // BookCard Component
 function BookCard({ book, onEdit, onDelete }: { 
   book: Book; 
@@ -3610,6 +3715,7 @@ function BugReportModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
     <AuthProvider>
       <div className="min-h-screen bg-gray-50">
         <AuthWrapper>
+        <AlphaWarningBanner />  {/* ADD THIS LINE */}
           <Navigation
             activeTab={activeTab}
             setActiveTab={setActiveTab}
