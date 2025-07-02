@@ -920,14 +920,26 @@ function FriendsList() {
 
   const removeFriend = async (friendId: string) => {
     if (!confirm('Are you sure you want to remove this friend?')) return;
-
+  
     try {
+      // Get the auth token (same pattern as your other API calls)
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        console.error('No auth token found');
+        return;
+      }
+  
       const response = await fetch(`/api/friends/${friendId}?userId=${user?.id}`, {
         method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}` // ADD THIS LINE
+        }
       });
-
+  
       if (response.ok) {
         setFriends(friends.filter(f => f.id !== friendId));
+      } else {
+        console.error('Failed to remove friend:', response.status);
       }
     } catch (error) {
       console.error('Failed to remove friend:', error);
@@ -2445,12 +2457,21 @@ function InvitationsList() {
     setProcessingId(invitationId);
     
     try {
+      // Get the auth token (same pattern as your other API calls)
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        console.error('No auth token found');
+        return;
+      }
+  
       const response = await fetch(`/api/friends/invite/${invitationId}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, userId: user?.id }),
+        headers: { 
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}` // ADD THIS LINE
+        },
+        body: JSON.stringify({ action: action === 'accepted' ? 'accept' : 'decline' }), // Remove userId, use action mapping
       });
-
       const data = await response.json();
 
       if (response.ok) {
@@ -2486,7 +2507,7 @@ function InvitationsList() {
   }
 
   const pendingReceived = invitations.filter(inv => inv.type === 'received' && inv.status === 'pending');
-  const sentInvitations = invitations.filter(inv => inv.type === 'sent');
+  const sentInvitations = invitations.filter(inv => inv.type === 'sent' && inv.status === 'pending');
 
   return (
     <div className="space-y-6">
