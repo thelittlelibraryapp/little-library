@@ -6,7 +6,8 @@ import {
   Search, 
   Plus, 
   BookOpen, 
-  Users, 
+  Users,
+  User, 
   Calendar, 
   Home, 
   LogOut, 
@@ -23,7 +24,9 @@ import {
   Gift,
   Send,
   Bell,
-  Bug
+  Bug,
+  Truck,
+  CircleCheck
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 
@@ -41,6 +44,17 @@ interface User {
   username: string;
 }
 
+interface ClaimNotification {
+  bookId: string;
+  bookTitle: string;
+  bookAuthor: string;
+  claimerName: string;
+  claimerUsername: string;
+  claimerEmail: string;
+  claimedAt: string;
+  timeRemaining: number;
+}
+
 interface Book {
   id: string;
   title: string;
@@ -56,7 +70,13 @@ interface Book {
   dueDate?: string;
   borrowedBy?: string;     // ADD THIS
   borrowerName?: string;   // ADD THIs
-  
+  is_free_to_good_home?: boolean;
+  delivery_method?: 'pickup' | 'mail' | 'both';
+  claimed_by_user_id?: string;
+  claimed_at?: string;
+  claim_expires_at?: string;
+  transfer_status?: 'none' | 'pending' | 'completed';
+  transfer_id?: string;
 }
 
 // Auth Context
@@ -344,6 +364,180 @@ const Badge = ({
     </span>
   );
 };
+
+
+function ClaimNotificationsPopup({ 
+  onBookClick, 
+  onClose 
+}: { 
+  onBookClick: (bookId: string) => void;
+  onClose: () => void;
+}) {
+  const [notifications, setNotifications] = useState<ClaimNotification[]>([]);
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    // Only show notifications once per session
+    const hasSeenNotifications = sessionStorage.getItem('hasSeenClaimNotifications');
+    if (!hasSeenNotifications) {
+      fetchClaimNotifications();
+    }
+  }, []);
+
+  const fetchClaimNotifications = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+
+      const response = await fetch('/api/books/claimed-notifications', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.notifications && data.notifications.length > 0) {
+          setNotifications(data.notifications);
+          setIsVisible(true);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching claim notifications:', error);
+    }
+  };
+
+  const handleClose = () => {
+    setIsVisible(false);
+    sessionStorage.setItem('hasSeenClaimNotifications', 'true');
+    onClose();
+  };
+
+  const handleBookClick = (bookId: string) => {
+    onBookClick(bookId);
+    handleClose();
+  };
+
+  if (!isVisible || notifications.length === 0) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[80vh] overflow-hidden">
+        {/* Header */}
+        <div className="bg-blue-600 text-white p-4 flex items-center justify-between">
+          <div className="flex items-center">
+            <BookOpen className="w-5 h-5 mr-2" />
+            <h2 className="text-lg font-semibold">
+              {notifications.length > 1 ? 'Books Claimed!' : 'Book Claimed!'}
+            </h2>
+          </div>
+          <button 
+            onClick={handleClose}
+            className="text-white hover:text-gray-200 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Notifications List */}
+        <div className="max-h-96 overflow-y-auto">
+          {notifications.map((notification, index) => (
+            <div 
+              key={notification.bookId}
+              className={`p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors ${
+                index === notifications.length - 1 ? 'border-b-0' : ''
+              }`}
+              onClick={() => handleBookClick(notification.bookId)}
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <h3 className="font-semibold text-gray-900 text-sm mb-1">
+                    "{notification.bookTitle}"
+                  </h3>
+                  <p className="text-gray-600 text-xs mb-2">
+                    by {notification.bookAuthor}
+                  </p>
+                  
+                  <div className="flex items-center text-xs text-blue-600 mb-1">
+                    <User className="w-3 h-3 mr-1" />
+                    <span className="font-medium">
+                      Claimed by {notification.claimerName} (@{notification.claimerUsername})
+                    </span>
+                  </div>
+                  
+                  <p className="text-xs text-gray-500 mb-1">
+                    📧 {notification.claimerEmail}
+                  </p>
+                  
+                  <p className="text-xs text-orange-600">
+                    ⏰ {notification.timeRemaining} hours remaining
+                  </p>
+                </div>
+                
+                <div className="ml-3 text-gray-400">
+                  <BookOpen className="w-4 h-4" />
+                </div>
+              </div>
+              
+              <div className="mt-2 text-xs text-blue-600 font-medium">
+                → Click to view book in your library
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Footer */}
+        <div className="bg-gray-50 p-3 text-center">
+          <p className="text-xs text-gray-600">
+            {notifications.length > 1 
+              ? `You have ${notifications.length} books awaiting pickup/delivery`
+              : 'Contact the claimer to arrange pickup or delivery'
+            }
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Hook to integrate with your main component
+function useClaimNotifications() {
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  const scrollToBook = (bookId: string) => {
+    // Switch to library tab if not already there
+    const libraryTab = document.querySelector('[data-tab="library"]') as HTMLElement;
+    if (libraryTab) {
+      libraryTab.click();
+    }
+
+    // Scroll to specific book card after a brief delay
+    setTimeout(() => {
+      const bookElement = document.querySelector(`[data-book-id="${bookId}"]`) as HTMLElement;
+      if (bookElement) {
+        bookElement.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'center' 
+        });
+        // Flash the book card to highlight it
+        bookElement.classList.add('ring-4', 'ring-blue-400', 'ring-opacity-75');
+        setTimeout(() => {
+          bookElement.classList.remove('ring-4', 'ring-blue-400', 'ring-opacity-75');
+        }, 3000);
+      }
+    }, 500);
+  };
+
+  return {
+    ClaimNotificationsPopup: (
+      <ClaimNotificationsPopup 
+        onBookClick={scrollToBook}
+        onClose={() => setShowNotifications(false)}
+      />
+    )
+  };
+}
+
 
 // Auth Components
 function AuthForm() {
@@ -1355,80 +1549,235 @@ function AlphaWarningCard() {
     </Card>
   );
 }
-// BookCard Component
-function BookCard({ book, onEdit, onDelete }: { 
+// Enhanced BookCard Component with Complete Transfer System
+function BookCard({ book, onEdit, onDelete, isOwner = true }: { 
   book: Book; 
   onEdit?: (book: Book) => void;
   onDelete?: (bookId: string) => void;
+  isOwner?: boolean;
 }) {
   const { user } = useAuth();
+  const [isUpdatingFreeStatus, setIsUpdatingFreeStatus] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [claimerInfo, setClaimerInfo] = useState<{
+    name: string;
+    username: string;
+    email: string;
+  } | null>(null);
   
-  console.log('Book data:', book);
-  console.log('Status:', book.status);
-  console.log('BorrowedBy:', book.borrowedBy);
-  console.log('BorrowerName:', book.borrowerName);
+  // Enhanced Book interface (these fields should be in your Book type)
+  const isFreeToGoodHome = book.is_free_to_good_home || false;
+  const deliveryMethod = book.delivery_method || 'pickup';
+  const claimedByUserId = book.claimed_by_user_id;
+  const claimedAt = book.claimed_at;
+  const claimExpiresAt = book.claim_expires_at;
+  
+  // Check if book is claimed and not expired
+  const isClaimed = claimedByUserId && claimExpiresAt && new Date(claimExpiresAt) > new Date();
+  const isClaimedByCurrentUser = claimedByUserId === user?.id;
+  
+ // Check for pending transfer from the database
+const transferStatus = book.transfer_status || 'none';
 
-  const getStatusBadge = (status: string, borrowedBy?: string) => {
-    switch (status) {
-      case 'available':
-        return <Badge variant="success">Available</Badge>;
-      case 'checked_out':
-        return <Badge variant="warning">
-          {borrowedBy ? `borrowed by @${borrowedBy}` : 'Checked Out'}
-        </Badge>;
-      case 'borrowed':
-        return <Badge variant="warning">
-          {borrowedBy ? `borrowed by @${borrowedBy}` : 'Borrowed'}
-        </Badge>;
-      case 'return_pending':
-        return <Badge variant="info">Return Pending</Badge>;
-      case 'overdue':
-        return <Badge variant="danger">Overdue</Badge>;
-      default:
-        return <Badge>{status}</Badge>;
+// DEBUG LOG - ADD THIS TEMPORARILY
+console.log('DEBUG - Book:', book.title, {
+  isClaimedByCurrentUser,
+  transferStatus: book.transfer_status,
+  claimedByUserId: book.claimed_by_user_id,
+  currentUserId: user?.id
+});
+  
+  
+  // Fetch claimer info if book is claimed and user is owner
+  useEffect(() => {
+    if (isClaimed && claimedByUserId && isOwner) {
+      fetchClaimerInfo();
     }
-  };
+  }, [isClaimed, claimedByUserId, isOwner]);
 
-  const handleCancelReturn = async () => {
-    const isConfirmed = confirm(
-      `Are you sure you want to cancel your return request for "${book.title}"?`
-    );
-    
-    if (!isConfirmed) return;
-  
+  const fetchClaimerInfo = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) return;
+
+      const response = await fetch(`/api/users/${claimedByUserId}`, {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        }
+      });
+
+      if (response.ok) {
+        const userData = await response.json();
+        setClaimerInfo({
+          name: `${userData.first_name} ${userData.last_name}`.trim(),
+          username: userData.username,
+          email: userData.email
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching claimer info:', error);
+    }
+  };
   
-      const response = await fetch(`/api/books/${book.id}/cancel-return`, {
+  // Calculate time remaining for claim
+  const getTimeRemaining = () => {
+    if (!claimExpiresAt) return null;
+    const now = new Date();
+    const expires = new Date(claimExpiresAt);
+    const hoursLeft = Math.ceil((expires.getTime() - now.getTime()) / (1000 * 60 * 60));
+    return hoursLeft > 0 ? hoursLeft : 0;
+  };
+
+  const handleToggleFreeStatus = async () => {
+    if (!isOwner) return;
+    
+    setIsUpdatingFreeStatus(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+
+      const response = await fetch(`/api/books/${book.id}/toggle-free`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ userId: user?.id })
+        body: JSON.stringify({ 
+          isFreeToGoodHome: !isFreeToGoodHome,
+          deliveryMethod: deliveryMethod 
+        })
       });
-  
+
       if (response.ok) {
-        // Refresh the page or update the book state
         window.location.reload();
-      } else {
-        console.error('Failed to cancel return request');
       }
     } catch (error) {
-      console.error('Error cancelling return request:', error);
-    }
-  };
-  const getConditionColor = (condition: string) => {
-    switch (condition) {
-      case 'excellent': return 'text-green-600';
-      case 'good': return 'text-blue-600';
-      case 'fair': return 'text-yellow-600';
-      case 'poor': return 'text-red-600';
-      default: return 'text-gray-600';
+      console.error('Error toggling free status:', error);
+    } finally {
+      setIsUpdatingFreeStatus(false);
     }
   };
 
+  const handleClaimBook = async () => {
+    if (isOwner || isClaimed) return;
+    
+    setIsLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+
+      const response = await fetch(`/api/books/${book.id}/claim`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error('Error claiming book:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleReleaseClaim = async () => {
+    if (!isClaimedByCurrentUser) return;
+    
+    setIsLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+
+      const response = await fetch(`/api/books/${book.id}/release-claim`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        alert('Claim released successfully');
+        window.location.reload();
+      } else {
+        console.error('Failed to release claim');
+      }
+    } catch (error) {
+      console.error('Error releasing claim:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleMarkHandedOff = async () => {
+    if (!isOwner || !isClaimed) return;
+    
+    setIsLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+
+      const response = await fetch(`/api/books/${book.id}/mark-handed-off`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        alert(`✅ Marked "${result.book_title}" as handed off! The claimer can now confirm receipt.`);
+        window.location.reload();
+      } else {
+        const error = await response.json();
+        alert(`Error: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('Error marking as handed off:', error);
+      alert('Failed to mark book as handed off');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleConfirmReceived = async () => {
+    if (!isClaimedByCurrentUser) return;
+    
+    setIsLoading(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+
+      const response = await fetch(`/api/books/${book.id}/confirm-received`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        alert(`🎉 Transfer complete! "${result.book_title}" is now in your library!`);
+        window.location.reload();
+      } else {
+        const error = await response.json();
+        alert(`Error: ${error.error}`);
+      }
+    } catch (error) {
+      console.error('Error confirming receipt:', error);
+      alert('Failed to confirm receipt');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Your existing functions (keep these from your current BookCard)
   const handleMarkAsReturned = async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -1444,7 +1793,6 @@ function BookCard({ book, onEdit, onDelete }: {
       });
 
       if (response.ok) {
-        // Refresh the page or update the book state
         window.location.reload();
       } else {
         console.error('Failed to mark book as returned');
@@ -1475,7 +1823,6 @@ function BookCard({ book, onEdit, onDelete }: {
       });
 
       if (response.ok) {
-        // Refresh the page or update the book state
         window.location.reload();
       } else {
         console.error('Failed to confirm book return');
@@ -1485,14 +1832,117 @@ function BookCard({ book, onEdit, onDelete }: {
     }
   };
 
-  // Determine if current user is the borrower
+  const getConditionColor = (condition: string) => {
+    switch (condition) {
+      case 'excellent': return 'text-green-600';
+      case 'good': return 'text-blue-600';
+      case 'fair': return 'text-yellow-600';
+      case 'poor': return 'text-red-600';
+      default: return 'text-gray-600';
+    }
+  };
+
+  const getDeliveryIcon = () => {
+    switch (deliveryMethod) {
+      case 'mail': return '📮';
+      case 'both': return '📮🏠';
+      case 'pickup':
+      default: return '🏠';
+    }
+  };
+
+  const getStatusBadge = () => {
+    if (isFreeToGoodHome) {
+      if (isClaimed) {
+        return (
+          <Badge variant="default">
+            🎯 Claimed ({getTimeRemaining()}h left)
+          </Badge>
+        );
+      }
+      return (
+        <Badge variant="success">
+          🎁 Free to Good Home {getDeliveryIcon()}
+        </Badge>
+      );
+    }
+    
+    // Original status badges for non-free books
+    switch (book.status) {
+      case 'available':
+        return <Badge variant="success">📚 Available</Badge>;
+      case 'borrowed':
+        return <Badge variant="default">📖 Borrowed</Badge>;
+      case 'checked_out':
+        return <Badge variant="default">📖 Checked Out</Badge>;
+      case 'return_pending':
+        return <Badge variant="info">📋 Return Pending</Badge>;
+      case 'overdue':
+        return <Badge variant="danger">⚠️ Overdue</Badge>;
+      default:
+        return <Badge variant="default">{book.status}</Badge>;
+    }
+  };
+
+  // Determine states
   const isBorrower = book.borrowedBy === user?.username;
-  
-  // Determine if current user is the owner (assuming book is from their library)
-  const isOwner = !isBorrower; // This might need adjustment based on your data structure
 
   return (
-    <Card className="p-4 hover:shadow-md transition-shadow">
+    <Card className={`p-4 hover:shadow-md transition-all ${
+      isFreeToGoodHome ? 'ring-2 ring-green-400 bg-green-50' : ''
+    } ${isClaimed ? 'ring-2 ring-yellow-400 bg-yellow-50' : ''}`}>
+      
+      {/* Free to Good Home Banner */}
+      {isFreeToGoodHome && (
+        <div className="mb-3 p-2 bg-green-100 border border-green-300 rounded-lg">
+          <div className="flex items-center justify-between">
+            <span className="text-green-800 font-medium text-sm">
+              🎁 Free to Good Home!
+            </span>
+            <span className="text-green-600 text-xs">
+              {getDeliveryIcon()} {deliveryMethod === 'both' ? 'Pickup or Mail' : 
+                deliveryMethod === 'mail' ? 'Will Mail' : 'Pickup Only'}
+            </span>
+          </div>
+          
+          {isClaimed && (
+            <div className="mt-2 text-xs text-yellow-700 bg-yellow-100 p-1 rounded">
+              {isOwner && claimerInfo 
+                ? `Claimed by ${claimerInfo.name} (@${claimerInfo.username}) - ${getTimeRemaining()} hours remaining.`
+                : isClaimedByCurrentUser 
+                  ? `You claimed this book! ${getTimeRemaining()} hours remaining.`
+                  : `Claimed by someone else. ${getTimeRemaining()} hours remaining.`
+              }
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* OWNER DETAILED CLAIM INFO */}
+      {isOwner && isClaimed && claimerInfo && (
+        <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-blue-900">
+                🎯 Claimed by {claimerInfo.name} (@{claimerInfo.username})
+              </p>
+              <p className="text-xs text-blue-700 mt-1">
+                📧 Contact: {claimerInfo.email}
+              </p>
+              <p className="text-xs text-blue-600 mt-1">
+                ⏰ Expires in {getTimeRemaining()} hours
+              </p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-blue-600">
+                {getDeliveryIcon()} {deliveryMethod}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Book Info */}
       <div className="flex justify-between items-start mb-3">
         <div className="flex-1">
           <h3 className="font-semibold text-gray-900 text-lg">{book.title}</h3>
@@ -1504,7 +1954,7 @@ function BookCard({ book, onEdit, onDelete }: {
             <p className="text-sm text-gray-500">{book.publicationYear}</p>
           )}
         </div>
-        {getStatusBadge(book.status, book.borrowedBy)}
+        {getStatusBadge()}
       </div>
 
       <div className="flex justify-between items-center text-sm mb-3">
@@ -1516,7 +1966,7 @@ function BookCard({ book, onEdit, onDelete }: {
         </span>
       </div>
 
-      {/* Display full borrower info if available */}
+      {/* Display borrower info for regular borrowed books */}
       {(book.status === 'borrowed' || book.status === 'return_pending') && book.borrowerName && (
         <div className={`p-2 rounded border mb-3 ${
           book.status === 'return_pending' ? 'bg-blue-50 border-blue-200' : 'bg-yellow-50 border-yellow-200'
@@ -1535,67 +1985,138 @@ function BookCard({ book, onEdit, onDelete }: {
               <span className="font-medium">Due:</span> {new Date(book.dueDate).toLocaleDateString()}
             </p>
           )}
-          {book.status === 'return_pending' && (
-            <p className="text-xs text-blue-600 mt-1">
-              {isBorrower ? 'Waiting for owner confirmation...' : 'Please confirm if you received this book back'}
-            </p>
-          )}
         </div>
       )}
 
       {book.notes && (
-        <p className="text-sm text-gray-600 mb-3 bg-gray-50 p-2 rounded">
-          {book.notes}
-        </p>
+        <div className="text-sm text-gray-600 mb-3 italic">
+          "{book.notes}"
+        </div>
       )}
 
-      {book.isbn && (
-        <p className="text-xs text-gray-500 mb-3">ISBN: {book.isbn}</p>
-      )}
+      {/* ACTION BUTTONS */}
+      <div className="flex flex-wrap gap-2 pt-3 border-t">
+        
+        {/* Free to Good Home Toggle (Owner Only) */}
+        {isOwner && !isClaimed && (
+          <Button 
+            size="sm" 
+            variant={isFreeToGoodHome ? "success" : "secondary"}
+            onClick={handleToggleFreeStatus}
+            disabled={isUpdatingFreeStatus}
+            className="flex-1"
+          >
+            {isUpdatingFreeStatus ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-1"></div>
+            ) : (
+              <Gift className="w-4 h-4 mr-1" />
+            )}
+            {isFreeToGoodHome ? 'Remove from Free' : 'Free to Good Home'}
+          </Button>
+        )}
 
-      {/* Action Buttons */}
-<div className="flex space-x-2 pt-3 border-t">
-  {/* Return/Cancel Return/Confirm Return Buttons */}
-  {book.status === 'borrowed' && isBorrower && (
-    <Button size="sm" variant="primary" onClick={handleMarkAsReturned}>
-      <CheckCircle className="w-4 h-4 mr-1" />
-      Mark as Returned
-    </Button>
-  )}
-  
-  {book.status === 'return_pending' && isBorrower && (
-    <Button size="sm" variant="secondary" onClick={handleCancelReturn}>
-      <XCircle className="w-4 h-4 mr-1" />
-      Cancel Return Request
-    </Button>
-  )}
-  
-  {book.status === 'return_pending' && isOwner && (
-    <Button size="sm" variant="success" onClick={handleConfirmReturn}>
-      <CheckCircle className="w-4 h-4 mr-1" />
-      Confirm Return
-    </Button>
-  )}
+        {/* Claim Button (Non-owners) */}
+        {!isOwner && isFreeToGoodHome && !isClaimed && (
+          <Button 
+            size="sm" 
+            variant="success"
+            onClick={handleClaimBook}
+            className="flex-1 animate-pulse"
+            disabled={isLoading}
+          >
+            <Trophy className="w-4 h-4 mr-1" />
+            Claim This Book!
+          </Button>
+        )}
 
-  {/* Regular Edit/Delete for available books */}
-  {book.status === 'available' && onEdit && (
-    <Button size="sm" variant="secondary" onClick={() => onEdit(book)}>
-      <Edit className="w-4 h-4 mr-1" />
-      Edit
-    </Button>
-  )}
-  
-  {book.status === 'available' && onDelete && (
-    <Button size="sm" variant="danger" onClick={() => onDelete(book.id)}>
-      <Trash2 className="w-4 h-4 mr-1" />
-      Delete
-    </Button>
-  )}
-</div>
+        {/* Release Claim Button */}
+        {isClaimedByCurrentUser && (
+          <Button 
+            size="sm" 
+            variant="secondary"
+            onClick={handleReleaseClaim}
+            className="flex-1"
+            disabled={isLoading}
+          >
+            <XCircle className="w-4 h-4 mr-1" />
+            Release Claim
+          </Button>
+        )}
+
+        {/* OWNER: Mark as Handed Off Button */}
+        {isOwner && isClaimed && transferStatus !== 'completed' && (
+          <Button 
+            size="sm" 
+            variant="secondary"
+            onClick={handleMarkHandedOff}
+            disabled={isLoading}
+            className="flex-1"
+          >
+            <Truck className="w-4 h-4 mr-1" />
+            Mark as Handed Off
+          </Button>
+        )}
+
+        {/* CLAIMER: Confirm Received Button */}
+        {isClaimedByCurrentUser && transferStatus === 'pending' && (
+          <Button 
+            size="sm" 
+            variant="success"
+            onClick={handleConfirmReceived}
+            disabled={isLoading}
+            className="flex-1"
+          >
+            <CheckCircle className="w-4 h-4 mr-1" />
+            Confirm I Received It
+          </Button>
+        )}
+
+        {/* Original Edit/Delete Buttons (Available books only) */}
+        {isOwner && !isFreeToGoodHome && book.status === 'available' && (
+          <>
+            {onEdit && (
+              <Button size="sm" variant="secondary" onClick={() => onEdit(book)}>
+                <Edit className="w-4 h-4 mr-1" />
+                Edit
+              </Button>
+            )}
+            
+            {onDelete && (
+              <Button size="sm" variant="danger" onClick={() => onDelete(book.id)}>
+                <Trash2 className="w-4 h-4 mr-1" />
+                Delete
+              </Button>
+            )}
+          </>
+        )}
+
+        {/* Regular borrower actions */}
+        {isBorrower && book.status === 'borrowed' && (
+          <Button
+            onClick={handleMarkAsReturned}
+            variant="secondary"
+            size="sm"
+            className="text-blue-600 border-blue-300 hover:bg-blue-50"
+          >
+            Mark as Returned
+          </Button>
+        )}
+
+        {/* Owner actions for regular borrowed books */}
+        {isOwner && book.status === 'return_pending' && (
+          <Button
+            onClick={handleConfirmReturn}
+            variant="secondary"
+            size="sm"
+            className="text-blue-600 border-blue-300 hover:bg-blue-50"
+          >
+            Confirm Return
+          </Button>
+        )}
+      </div>
     </Card>
   );
 }
-
 // Enhanced Add Book Modal Component with ISBN Auto-Lookup
 function AddBookModal({ 
   isOpen, 
@@ -2455,13 +2976,14 @@ function MyLibrary() {
       {filteredBooks.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredBooks.map(book => (
-            <BookCard 
-              key={book.id} 
-              book={book} 
-              onEdit={handleEditBook}
-              onDelete={handleDeleteBook}
-            />
-          ))}
+  <div key={book.id} data-book-id={book.id}>
+    <BookCard 
+      book={book} 
+      onEdit={handleEditBook}
+      onDelete={handleDeleteBook}
+    />
+  </div>
+))}
         </div>
       ) : (
         <Card className="p-8 text-center">
@@ -3038,7 +3560,7 @@ function AuthWrapper({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-// Friend's Library Viewer Modal
+// Friend's Library Viewer Modal - UPDATED for Free to Good Home
 function FriendLibraryModal({ friend, isOpen, onClose }: { 
   friend: Friend | null; 
   isOpen: boolean; 
@@ -3046,7 +3568,6 @@ function FriendLibraryModal({ friend, isOpen, onClose }: {
 }) {
   const [books, setBooks] = useState<Book[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState<'added' | 'title' | 'author'>('added');
 
@@ -3097,7 +3618,7 @@ function FriendLibraryModal({ friend, isOpen, onClose }: {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg p-6 w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg p-6 w-full max-w-6xl max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold">{friend?.firstName}'s Library</h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
@@ -3141,7 +3662,7 @@ function FriendLibraryModal({ friend, isOpen, onClose }: {
               </select>
             </div>
 
-            {/* Books Grid */}
+            {/* Books Grid - NOW USING ENHANCED BOOKCARD */}
             {sortedAndFilteredBooks.length === 0 ? (
               <div className="text-center py-8">
                 <Search className="w-16 h-16 text-gray-300 mx-auto mb-4" />
@@ -3149,51 +3670,22 @@ function FriendLibraryModal({ friend, isOpen, onClose }: {
                 <p className="text-gray-600">Try adjusting your search terms.</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {sortedAndFilteredBooks.map((book) => (
-                  <Card key={book.id} className="p-4">
-                    <div className="space-y-3">
-                      <div>
-                        <h3 className="font-semibold text-gray-900 text-sm">{book.title}</h3>
-                        <p className="text-gray-600 text-xs">by {book.author}</p>
-                      </div>
-                      
-                      {book.genre && (
-                        <div className="text-xs text-gray-500">Genre: {book.genre}</div>
-                      )}
-                      
-                      <div className="text-xs text-gray-500">Condition: {book.condition}</div>
-                      
-                      {book.notes && (
-                        <p className="text-xs text-gray-600">{book.notes}</p>
-                      )}
-                      
-                      <Button 
-                        size="sm" 
-                        className="w-full"
-                        onClick={() => setSelectedBook(book)}
-                      >
-                        Request to Borrow
-                      </Button>
-                    </div>
-                  </Card>
+                  <BookCard 
+                    key={book.id} 
+                    book={book} 
+                    isOwner={false}  // CRITICAL: Tell component this is friend's view
+                  />
                 ))}
               </div>
             )}
-
-            <BorrowRequestModal
-              book={selectedBook}
-              friend={friend}
-              isOpen={!!selectedBook}
-              onClose={() => setSelectedBook(null)}
-            />
           </>
         )}
       </div>
     </div>
   );
 }
-
 // Borrow Request Modal  
 function BorrowRequestModal({ book, friend, isOpen, onClose }: {
   book: Book | null;
@@ -3491,6 +3983,7 @@ export default function LittleLibraryApp() {
 
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showBugReport, setShowBugReport] = useState(false); 
+  const { ClaimNotificationsPopup } = useClaimNotifications();
 
   useEffect(() => {
     localStorage.setItem('activeTab', activeTab);
@@ -3738,7 +4231,7 @@ function BugReportModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
             isOpen={showBugReport} 
             onClose={() => setShowBugReport(false)} 
           />
-          
+          {ClaimNotificationsPopup}
         </AuthWrapper>
       </div>
     </AuthProvider>

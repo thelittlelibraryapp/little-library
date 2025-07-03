@@ -7,10 +7,10 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id: userId } = await params;  // TO THIS
+    const { id: userId } = await params;
 
     // Get user's library
     const { data: library } = await supabase
@@ -23,12 +23,24 @@ export async function GET(
       return NextResponse.json({ books: [] });
     }
 
-    // Get available books
+    // Get available books WITH FREE TO GOOD HOME FIELDS AND TRANSFER STATUS
     const { data: books, error } = await supabase
       .from('books')
       .select(`
         *,
-        book_status!inner(status)
+        is_free_to_good_home,
+        delivery_method,
+        claimed_by_user_id,
+        claimed_at,
+        claim_expires_at,
+        book_status!inner(status),
+        book_transfers!left(
+          id,
+          status,
+          transfer_initiated_at,
+          transfer_completed_at,
+          to_library_id
+        )
       `)
       .eq('library_id', library.id)
       .eq('book_status.status', 'available')
@@ -36,19 +48,35 @@ export async function GET(
 
     if (error) throw error;
 
-    // Transform to match your Book interface
-    const transformedBooks = books?.map(book => ({
-      id: book.id,
-      title: book.title,
-      author: book.author,
-      isbn: book.isbn,
-      genre: book.genre,
-      publicationYear: book.publication_year,
-      condition: book.condition,
-      notes: book.notes,
-      status: book.book_status[0]?.status || 'available',
-      addedAt: book.added_at
-    })) || [];
+    // Transform to match your Book interface WITH NEW FIELDS AND TRANSFER STATUS
+    const transformedBooks = books?.map(book => {
+      // Get the most recent pending transfer
+      const pendingTransfer = book.book_transfers?.find(
+        (transfer: any) => transfer.status === 'pending'
+      );
+      
+      return {
+        id: book.id,
+        title: book.title,
+        author: book.author,
+        isbn: book.isbn,
+        genre: book.genre,
+        publicationYear: book.publication_year,
+        condition: book.condition,
+        notes: book.notes,
+        status: book.book_status[0]?.status || 'available',
+        addedAt: book.added_at,
+        // FREE TO GOOD HOME FIELDS:
+        is_free_to_good_home: book.is_free_to_good_home || false,
+        delivery_method: book.delivery_method || 'pickup',
+        claimed_by_user_id: book.claimed_by_user_id || null,
+        claimed_at: book.claimed_at || null,
+        claim_expires_at: book.claim_expires_at || null,
+        // NEW TRANSFER FIELDS:
+        transfer_status: pendingTransfer ? 'pending' : 'none',
+        transfer_id: pendingTransfer?.id || null
+      };
+    }) || [];
 
     return NextResponse.json({ books: transformedBooks });
 

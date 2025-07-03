@@ -34,17 +34,29 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Library not found' }, { status: 404 });
     }
 
-    // Fetch books from user's library with status and borrower info
+    // Fetch books from user's library with status, borrower info, AND transfer status
     const { data: books, error: booksError } = await supabase
       .from('books')
       .select(`
         *,
+        is_free_to_good_home,
+        delivery_method,
+        claimed_by_user_id,
+        claimed_at,
+        claim_expires_at,
         book_status!inner(status),
         borrowing_history(
           borrower_id,
           checked_out_at,
           due_date,
           borrower:borrower_id(first_name, last_name, username)
+        ),
+        book_transfers!left(
+          id,
+          status,
+          transfer_initiated_at,
+          transfer_completed_at,
+          to_library_id
         )
       `)
       .eq('library_id', library.id)
@@ -58,6 +70,11 @@ export async function GET(request: NextRequest) {
     const transformedBooks = books?.map(book => {
       const activeBorrow = book.borrowing_history?.find(
         (bh: any) => bh.checked_out_at && !bh.checked_in_at
+      );
+      
+      // Get the most recent pending transfer
+      const pendingTransfer = book.book_transfers?.find(
+        (transfer: any) => transfer.status === 'pending'
       );
       
       return {
@@ -74,7 +91,15 @@ export async function GET(request: NextRequest) {
         borrowedBy: activeBorrow?.borrower?.username || null,
         borrowerName: activeBorrow ? 
           `${activeBorrow.borrower?.first_name} ${activeBorrow.borrower?.last_name}` : null,
-        dueDate: activeBorrow?.due_date || null
+        dueDate: activeBorrow?.due_date || null,
+        is_free_to_good_home: book.is_free_to_good_home || false,
+        delivery_method: book.delivery_method || 'pickup',
+        claimed_by_user_id: book.claimed_by_user_id || null,
+        claimed_at: book.claimed_at || null,
+        claim_expires_at: book.claim_expires_at || null,
+        // NEW TRANSFER FIELDS
+        transfer_status: pendingTransfer ? 'pending' : 'none',
+        transfer_id: pendingTransfer?.id || null
       };
     }) || [];
 
@@ -171,7 +196,10 @@ export async function POST(request: NextRequest) {
       condition: book.condition,
       notes: book.notes,
       status: 'available',
-      addedAt: book.added_at
+      addedAt: book.added_at,
+      // Initialize transfer fields for new books
+      transfer_status: 'none',
+      transfer_id: null
     };
 
     return NextResponse.json({ book: transformedBook }, { status: 201 });
