@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Library not found' }, { status: 404 });
     }
 
-    // Fetch books from user's library with status, borrower info, AND transfer status
+    // Fetch books from user's library with status, borrower info, transfer status, AND IMAGES
     const { data: books, error: booksError } = await supabase
       .from('books')
       .select(`
@@ -44,6 +44,10 @@ export async function GET(request: NextRequest) {
         claimed_by_user_id,
         claimed_at,
         claim_expires_at,
+        cover_image_url,
+        spine_image_url,
+        has_custom_cover,
+        has_custom_spine,
         book_status!inner(status),
         borrowing_history(
           borrower_id,
@@ -97,9 +101,14 @@ export async function GET(request: NextRequest) {
         claimed_by_user_id: book.claimed_by_user_id || null,
         claimed_at: book.claimed_at || null,
         claim_expires_at: book.claim_expires_at || null,
-        // NEW TRANSFER FIELDS
+        // TRANSFER FIELDS
         transfer_status: pendingTransfer ? 'pending' : 'none',
-        transfer_id: pendingTransfer?.id || null
+        transfer_id: pendingTransfer?.id || null,
+        // NEW IMAGE FIELDS
+        cover_image_url: book.cover_image_url || null,
+        spine_image_url: book.spine_image_url || null,
+        has_custom_cover: book.has_custom_cover || false,
+        has_custom_spine: book.has_custom_spine || false
       };
     }) || [];
 
@@ -199,7 +208,12 @@ export async function POST(request: NextRequest) {
       addedAt: book.added_at,
       // Initialize transfer fields for new books
       transfer_status: 'none',
-      transfer_id: null
+      transfer_id: null,
+      // Initialize image fields for new books
+      cover_image_url: null,
+      spine_image_url: null,
+      has_custom_cover: false,
+      has_custom_spine: false
     };
 
     return NextResponse.json({ book: transformedBook }, { status: 201 });

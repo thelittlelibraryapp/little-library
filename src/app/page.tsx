@@ -1,7 +1,7 @@
 //Little Library Project Next Steps V7
 'use client';
 
-import React, { useState, useEffect, useContext, createContext } from 'react';
+import React, { useState, useEffect, useContext, createContext, useRef } from 'react';
 import { 
   Search, 
   Plus, 
@@ -26,9 +26,14 @@ import {
   Bell,
   Bug,
   Truck,
-  CircleCheck
+  CircleCheck,
+  Camera,
+  AlertCircle
+  
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
+
+
 
 // Initialize Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -70,6 +75,7 @@ interface Book {
   dueDate?: string;
   borrowedBy?: string;     // ADD THIS
   borrowerName?: string;   // ADD THIs
+  // FREE TO GOOD HOME FIELDS
   is_free_to_good_home?: boolean;
   delivery_method?: 'pickup' | 'mail' | 'both';
   claimed_by_user_id?: string;
@@ -77,6 +83,11 @@ interface Book {
   claim_expires_at?: string;
   transfer_status?: 'none' | 'pending' | 'completed';
   transfer_id?: string;
+   // NEW IMAGE FIELDS - ADD THESE:
+   cover_image_url?: string;
+   spine_image_url?: string;
+   has_custom_cover?: boolean;
+   has_custom_spine?: boolean;
 }
 
 // Auth Context
@@ -348,7 +359,8 @@ const Badge = ({
   variant = 'default' 
 }: { 
   children: React.ReactNode; 
-  variant?: 'default' | 'success' | 'warning' | 'danger' | 'info'
+  variant?: 'default' | 'success' | 'warning' | 'danger' | 'info';
+  className?: string;
 }) => {
   const variants = {
     default: 'bg-gray-100 text-gray-800',
@@ -1549,7 +1561,7 @@ function AlphaWarningCard() {
     </Card>
   );
 }
-// Enhanced BookCard Component with Complete Transfer System
+// Enhanced BookCard Component with CSS Spine Toggle
 function BookCard({ book, onEdit, onDelete, isOwner = true }: { 
   book: Book; 
   onEdit?: (book: Book) => void;
@@ -1559,6 +1571,8 @@ function BookCard({ book, onEdit, onDelete, isOwner = true }: {
   const { user } = useAuth();
   const [isUpdatingFreeStatus, setIsUpdatingFreeStatus] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  const [viewMode, setViewMode] = useState('cover');
   const [claimerInfo, setClaimerInfo] = useState<{
     name: string;
     username: string;
@@ -1576,17 +1590,60 @@ function BookCard({ book, onEdit, onDelete, isOwner = true }: {
   const isClaimed = claimedByUserId && claimExpiresAt && new Date(claimExpiresAt) > new Date();
   const isClaimedByCurrentUser = claimedByUserId === user?.id;
   
- // Check for pending transfer from the database
-const transferStatus = book.transfer_status || 'none';
-
-// DEBUG LOG - ADD THIS TEMPORARILY
-console.log('DEBUG - Book:', book.title, {
-  isClaimedByCurrentUser,
-  transferStatus: book.transfer_status,
-  claimedByUserId: book.claimed_by_user_id,
-  currentUserId: user?.id
-});
+  // Check for pending transfer from the database
+  const transferStatus = book.transfer_status || 'none';
   
+  // Get book cover image with smart fallbacks
+  const getBookCoverImage = () => {
+    // Priority: Custom upload > Google Books API > Default placeholder
+    if (book.cover_image_url && !imageError) {
+      return book.cover_image_url;
+    }
+    
+    // Fallback to Google Books API if we have ISBN
+    if (book.isbn && !imageError) {
+      return `https://covers.openlibrary.org/b/isbn/${book.isbn}-M.jpg`;
+    }
+    
+    // Default book placeholder
+    return null;
+  };
+
+  const coverImageUrl = getBookCoverImage();
+  
+  // Generate spine color based on genre or title
+  const getSpineColor = () => {
+    const colors = [
+      '#e74c3c', '#3498db', '#2ecc71', '#f39c12', 
+      '#9b59b6', '#34495e', '#e67e22', '#1abc9c',
+      '#8b4513', '#2c3e50', '#27ae60', '#8e44ad'
+    ];
+    
+    // Use genre or title to determine color consistently
+    const seed = book.genre || book.title;
+    const hash = seed.split('').reduce((a, b) => {
+      a = ((a << 5) - a) + b.charCodeAt(0);
+      return a & a;
+    }, 0);
+    
+    return colors[Math.abs(hash) % colors.length];
+  };
+
+  // Calculate spine height based on book properties
+  const getSpineHeight = () => {
+    // Base height with some variation
+    let height = 200;
+    
+    // Adjust based on title length (longer titles = taller books)
+    if (book.title.length > 20) height += 30;
+    if (book.title.length > 40) height += 20;
+    
+    // Add some randomness based on title for consistent variety
+    const titleHash = book.title.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+    height += (titleHash % 60) - 30; // ±30px variation
+    
+    return Math.max(160, Math.min(280, height)); // Keep within reasonable bounds
+  };
   
   // Fetch claimer info if book is claimed and user is owner
   useEffect(() => {
@@ -1628,6 +1685,7 @@ console.log('DEBUG - Book:', book.title, {
     return hoursLeft > 0 ? hoursLeft : 0;
   };
 
+  // All your existing handler functions remain the same...
   const handleToggleFreeStatus = async () => {
     if (!isOwner) return;
     
@@ -1887,14 +1945,161 @@ console.log('DEBUG - Book:', book.title, {
   // Determine states
   const isBorrower = book.borrowedBy === user?.username;
 
+  // SPINE VIEW COMPONENT
+  if (viewMode === 'spine') {
+    const spineHeight = getSpineHeight();
+    const spineColor = getSpineColor();
+    
+    return (
+      <div 
+        className="relative cursor-pointer transition-all duration-300 hover:transform hover:-translate-y-2 hover:scale-105 hover:z-10"
+        style={{ height: `${spineHeight}px` }}
+        onClick={() => setViewMode('cover')}
+        title="Click to view full book details"
+      >
+        {/* CSS Generated Spine */}
+        <div 
+          className="w-9 h-full rounded-sm relative shadow-lg"
+          style={{
+            background: `linear-gradient(to right, ${spineColor}, ${spineColor}dd, #333333aa)`,
+            boxShadow: `
+              inset -3px 0 5px rgba(0,0,0,0.2),
+              2px 0 8px rgba(0,0,0,0.3),
+              0 2px 10px rgba(0,0,0,0.1)
+            `
+          }}
+        >
+          {/* Edge highlight */}
+          <div 
+            className="absolute left-0 top-0 w-1 h-full bg-white opacity-30 rounded-l-sm"
+          />
+          
+          {/* Spine text */}
+          <div 
+            className="absolute inset-0 flex items-center justify-center p-1"
+            style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}
+          >
+            <div className="text-white text-center">
+              <div 
+                className="font-bold text-xs leading-tight tracking-wide mb-2"
+                style={{ 
+                  textShadow: '1px 1px 2px rgba(0,0,0,0.7)',
+                  wordBreak: 'break-word'
+                }}
+              >
+                {book.title.toUpperCase().substring(0, 30)}
+              </div>
+              <div 
+                className="text-xs leading-tight opacity-90"
+                style={{ 
+                  textShadow: '1px 1px 2px rgba(0,0,0,0.7)',
+                  fontSize: '10px'
+                }}
+              >
+                {book.author.toUpperCase().substring(0, 20)}
+              </div>
+            </div>
+          </div>
+          
+          {/* Status indicator for spine */}
+          {isFreeToGoodHome && (
+            <div className="absolute top-1 right-0 w-2 h-2 bg-green-400 rounded-full border border-white" />
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <Card className={`p-4 hover:shadow-md transition-all ${
+    <Card className={`overflow-hidden hover:shadow-lg transition-all duration-300 ${
       isFreeToGoodHome ? 'ring-2 ring-green-400 bg-green-50' : ''
     } ${isClaimed ? 'ring-2 ring-yellow-400 bg-yellow-50' : ''}`}>
       
+      {/* VIEW MODE TOGGLE BUTTONS */}
+      <div className="absolute top-2 left-2 z-10 flex gap-1">
+        <button
+          onClick={() => setViewMode('cover')}
+          className={`px-2 py-1 text-xs rounded-full transition-all ${
+            viewMode === 'cover' 
+              ? 'bg-blue-600 text-white shadow-md' 
+              : 'bg-white/80 text-gray-600 hover:bg-white'
+          }`}
+          title="Full Cover View"
+        >
+          📖
+        </button>
+        <button
+          onClick={() => setViewMode('cover-crop')}
+          className={`px-2 py-1 text-xs rounded-full transition-all ${
+            viewMode === 'cover-crop' 
+              ? 'bg-blue-600 text-white shadow-md' 
+              : 'bg-white/80 text-gray-600 hover:bg-white'
+          }`}
+          title="Cropped Cover View"
+        >
+          🎨
+        </button>
+        <button
+          onClick={() => setViewMode('spine')}
+          className={`px-2 py-1 text-xs rounded-full transition-all ${
+            viewMode === 'spine' 
+              ? 'bg-blue-600 text-white shadow-md' 
+              : 'bg-white/80 text-gray-600 hover:bg-white'
+          }`}
+          title="Bookshelf Spine View"
+        >
+          📚
+        </button>
+      </div>
+      
+      {/* GORGEOUS IMAGE HEADER */}
+      <div className="relative">
+        {coverImageUrl ? (
+          <div className="relative h-48 w-full overflow-hidden">
+            <img 
+              src={coverImageUrl}
+              alt={`Cover of ${book.title}`}
+              className={`w-full h-full transition-all duration-500 ${
+                viewMode === 'cover-crop' ? 'object-cover' : 'object-contain bg-gradient-to-br from-blue-50 to-indigo-100'
+              }`}
+              onError={() => setImageError(true)}
+            />
+            {/* Gradient overlay for better text readability */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+            
+            {/* Status badge overlay */}
+            <div className="absolute top-3 right-3">
+              {getStatusBadge()}
+            </div>
+
+            {/* Custom image indicator */}
+            {book.has_custom_cover && (
+              <div className="absolute top-3 left-3">
+                <Badge variant="info" className="text-xs">
+                  📸 Custom
+                </Badge>
+              </div>
+            )}
+          </div>
+        ) : (
+          // Fallback design when no image
+          <div className="h-48 w-full bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center relative">
+            <div className="text-center">
+              <BookOpen className="w-16 h-16 text-blue-400 mx-auto mb-2" />
+              <p className="text-blue-600 font-medium">No Cover Image</p>
+            </div>
+            
+            {/* Status badge overlay */}
+            <div className="absolute top-3 right-3">
+              {getStatusBadge()}
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Free to Good Home Banner */}
       {isFreeToGoodHome && (
-        <div className="mb-3 p-2 bg-green-100 border border-green-300 rounded-lg">
+        <div className="mx-4 -mt-6 relative z-10 mb-3 p-3 bg-green-100 border border-green-300 rounded-lg shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-green-800 font-medium text-sm">
               🎁 Free to Good Home!
@@ -1906,7 +2111,7 @@ console.log('DEBUG - Book:', book.title, {
           </div>
           
           {isClaimed && (
-            <div className="mt-2 text-xs text-yellow-700 bg-yellow-100 p-1 rounded">
+            <div className="mt-2 text-xs text-yellow-700 bg-yellow-100 p-2 rounded">
               {isOwner && claimerInfo 
                 ? `Claimed by ${claimerInfo.name} (@${claimerInfo.username}) - ${getTimeRemaining()} hours remaining.`
                 : isClaimedByCurrentUser 
@@ -1920,7 +2125,7 @@ console.log('DEBUG - Book:', book.title, {
 
       {/* OWNER DETAILED CLAIM INFO */}
       {isOwner && isClaimed && claimerInfo && (
-        <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+        <div className="mx-4 mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <p className="text-sm font-medium text-blue-900">
@@ -1942,11 +2147,12 @@ console.log('DEBUG - Book:', book.title, {
         </div>
       )}
 
-      {/* Book Info */}
-      <div className="flex justify-between items-start mb-3">
-        <div className="flex-1">
-          <h3 className="font-semibold text-gray-900 text-lg">{book.title}</h3>
-          <p className="text-gray-600">{book.author}</p>
+      {/* BOOK CONTENT */}
+      <div className="p-4">
+        {/* Book Info */}
+        <div className="mb-3">
+          <h3 className="font-semibold text-gray-900 text-lg mb-1 line-clamp-2">{book.title}</h3>
+          <p className="text-gray-600 mb-1">{book.author}</p>
           {book.genre && (
             <p className="text-sm text-gray-500 capitalize">{book.genre.replace('-', ' ')}</p>
           )}
@@ -1954,170 +2160,804 @@ console.log('DEBUG - Book:', book.title, {
             <p className="text-sm text-gray-500">{book.publicationYear}</p>
           )}
         </div>
-        {getStatusBadge()}
-      </div>
 
-      <div className="flex justify-between items-center text-sm mb-3">
-        <span className={`font-medium capitalize ${getConditionColor(book.condition)}`}>
-          {book.condition} condition
-        </span>
-        <span className="text-gray-500">
-          Added {new Date(book.addedAt).toLocaleDateString()}
-        </span>
-      </div>
+        <div className="flex justify-between items-center text-sm mb-3">
+          <span className={`font-medium capitalize ${getConditionColor(book.condition)}`}>
+            {book.condition} condition
+          </span>
+          <span className="text-gray-500">
+            Added {new Date(book.addedAt).toLocaleDateString()}
+          </span>
+        </div>
 
-      {/* Display borrower info for regular borrowed books */}
-      {(book.status === 'borrowed' || book.status === 'return_pending') && book.borrowerName && (
-        <div className={`p-2 rounded border mb-3 ${
-          book.status === 'return_pending' ? 'bg-blue-50 border-blue-200' : 'bg-yellow-50 border-yellow-200'
-        }`}>
-          <p className={`text-sm ${
-            book.status === 'return_pending' ? 'text-blue-800' : 'text-yellow-800'
+        {/* Display borrower info for regular borrowed books */}
+        {(book.status === 'borrowed' || book.status === 'return_pending') && book.borrowerName && (
+          <div className={`p-2 rounded border mb-3 ${
+            book.status === 'return_pending' ? 'bg-blue-50 border-blue-200' : 'bg-yellow-50 border-yellow-200'
           }`}>
-            <span className="font-medium">
-              {book.status === 'return_pending' ? 'Return pending from:' : 'Borrowed by:'}
-            </span> {book.borrowerName}
-          </p>
-          {book.dueDate && (
             <p className={`text-sm ${
               book.status === 'return_pending' ? 'text-blue-800' : 'text-yellow-800'
             }`}>
-              <span className="font-medium">Due:</span> {new Date(book.dueDate).toLocaleDateString()}
+              <span className="font-medium">
+                {book.status === 'return_pending' ? 'Return pending from:' : 'Borrowed by:'}
+              </span> {book.borrowerName}
             </p>
+            {book.dueDate && (
+              <p className={`text-sm ${
+                book.status === 'return_pending' ? 'text-blue-800' : 'text-yellow-800'
+              }`}>
+                <span className="font-medium">Due:</span> {new Date(book.dueDate).toLocaleDateString()}
+              </p>
+            )}
+          </div>
+        )}
+
+        {book.notes && (
+          <div className="text-sm text-gray-600 mb-3 italic">
+            "{book.notes}"
+          </div>
+        )}
+
+        {/* ACTION BUTTONS */}
+        <div className="flex flex-wrap gap-2 pt-3 border-t">
+          
+          {/* Free to Good Home Toggle (Owner Only) */}
+          {isOwner && !isClaimed && (
+            <Button 
+              size="sm" 
+              variant={isFreeToGoodHome ? "success" : "secondary"}
+              onClick={handleToggleFreeStatus}
+              disabled={isUpdatingFreeStatus}
+              className="flex-1"
+            >
+              {isUpdatingFreeStatus ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-1"></div>
+              ) : (
+                <Gift className="w-4 h-4 mr-1" />
+              )}
+              {isFreeToGoodHome ? 'Remove from Free' : 'Free to Good Home'}
+            </Button>
+          )}
+
+          {/* Claim Button (Non-owners) */}
+          {!isOwner && isFreeToGoodHome && !isClaimed && (
+            <Button 
+              size="sm" 
+              variant="success"
+              onClick={handleClaimBook}
+              className="flex-1 animate-pulse"
+              disabled={isLoading}
+            >
+              <Trophy className="w-4 h-4 mr-1" />
+              Claim This Book!
+            </Button>
+          )}
+
+          {/* Release Claim Button */}
+          {isClaimedByCurrentUser && (
+            <Button 
+              size="sm" 
+              variant="secondary"
+              onClick={handleReleaseClaim}
+              className="flex-1"
+              disabled={isLoading}
+            >
+              <XCircle className="w-4 h-4 mr-1" />
+              Release Claim
+            </Button>
+          )}
+
+          {/* OWNER: Mark as Handed Off Button */}
+          {isOwner && isClaimed && transferStatus !== 'completed' && (
+            <Button 
+              size="sm" 
+              variant="secondary"
+              onClick={handleMarkHandedOff}
+              disabled={isLoading}
+              className="flex-1"
+            >
+              <Truck className="w-4 h-4 mr-1" />
+              Mark as Handed Off
+            </Button>
+          )}
+
+          {/* CLAIMER: Confirm Received Button */}
+          {isClaimedByCurrentUser && transferStatus === 'pending' && (
+            <Button 
+              size="sm" 
+              variant="success"
+              onClick={handleConfirmReceived}
+              disabled={isLoading}
+              className="flex-1"
+            >
+              <CheckCircle className="w-4 h-4 mr-1" />
+              Confirm I Received It
+            </Button>
+          )}
+
+          {/* Original Edit/Delete Buttons (Available books only) */}
+          {isOwner && !isFreeToGoodHome && book.status === 'available' && (
+            <>
+              {onEdit && (
+                <Button size="sm" variant="secondary" onClick={() => onEdit(book)}>
+                  <Edit className="w-4 h-4 mr-1" />
+                  Edit
+                </Button>
+              )}
+              
+              {onDelete && (
+                <Button size="sm" variant="danger" onClick={() => onDelete(book.id)}>
+                  <Trash2 className="w-4 h-4 mr-1" />
+                  Delete
+                </Button>
+              )}
+            </>
+          )}
+
+          {/* Regular borrower actions */}
+          {isBorrower && book.status === 'borrowed' && (
+            <Button
+              onClick={handleMarkAsReturned}
+              variant="secondary"
+              size="sm"
+              className="text-blue-600 border-blue-300 hover:bg-blue-50"
+            >
+              Mark as Returned
+            </Button>
+          )}
+
+          {/* Owner actions for regular borrowed books */}
+          {isOwner && book.status === 'return_pending' && (
+            <Button
+              onClick={handleConfirmReturn}
+              variant="secondary"
+              size="sm"
+              className="text-blue-600 border-blue-300 hover:bg-blue-50"
+            >
+              Confirm Return
+            </Button>
           )}
         </div>
-      )}
-
-      {book.notes && (
-        <div className="text-sm text-gray-600 mb-3 italic">
-          "{book.notes}"
-        </div>
-      )}
-
-      {/* ACTION BUTTONS */}
-      <div className="flex flex-wrap gap-2 pt-3 border-t">
-        
-        {/* Free to Good Home Toggle (Owner Only) */}
-        {isOwner && !isClaimed && (
-          <Button 
-            size="sm" 
-            variant={isFreeToGoodHome ? "success" : "secondary"}
-            onClick={handleToggleFreeStatus}
-            disabled={isUpdatingFreeStatus}
-            className="flex-1"
-          >
-            {isUpdatingFreeStatus ? (
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-1"></div>
-            ) : (
-              <Gift className="w-4 h-4 mr-1" />
-            )}
-            {isFreeToGoodHome ? 'Remove from Free' : 'Free to Good Home'}
-          </Button>
-        )}
-
-        {/* Claim Button (Non-owners) */}
-        {!isOwner && isFreeToGoodHome && !isClaimed && (
-          <Button 
-            size="sm" 
-            variant="success"
-            onClick={handleClaimBook}
-            className="flex-1 animate-pulse"
-            disabled={isLoading}
-          >
-            <Trophy className="w-4 h-4 mr-1" />
-            Claim This Book!
-          </Button>
-        )}
-
-        {/* Release Claim Button */}
-        {isClaimedByCurrentUser && (
-          <Button 
-            size="sm" 
-            variant="secondary"
-            onClick={handleReleaseClaim}
-            className="flex-1"
-            disabled={isLoading}
-          >
-            <XCircle className="w-4 h-4 mr-1" />
-            Release Claim
-          </Button>
-        )}
-
-        {/* OWNER: Mark as Handed Off Button */}
-        {isOwner && isClaimed && transferStatus !== 'completed' && (
-          <Button 
-            size="sm" 
-            variant="secondary"
-            onClick={handleMarkHandedOff}
-            disabled={isLoading}
-            className="flex-1"
-          >
-            <Truck className="w-4 h-4 mr-1" />
-            Mark as Handed Off
-          </Button>
-        )}
-
-        {/* CLAIMER: Confirm Received Button */}
-        {isClaimedByCurrentUser && transferStatus === 'pending' && (
-          <Button 
-            size="sm" 
-            variant="success"
-            onClick={handleConfirmReceived}
-            disabled={isLoading}
-            className="flex-1"
-          >
-            <CheckCircle className="w-4 h-4 mr-1" />
-            Confirm I Received It
-          </Button>
-        )}
-
-        {/* Original Edit/Delete Buttons (Available books only) */}
-        {isOwner && !isFreeToGoodHome && book.status === 'available' && (
-          <>
-            {onEdit && (
-              <Button size="sm" variant="secondary" onClick={() => onEdit(book)}>
-                <Edit className="w-4 h-4 mr-1" />
-                Edit
-              </Button>
-            )}
-            
-            {onDelete && (
-              <Button size="sm" variant="danger" onClick={() => onDelete(book.id)}>
-                <Trash2 className="w-4 h-4 mr-1" />
-                Delete
-              </Button>
-            )}
-          </>
-        )}
-
-        {/* Regular borrower actions */}
-        {isBorrower && book.status === 'borrowed' && (
-          <Button
-            onClick={handleMarkAsReturned}
-            variant="secondary"
-            size="sm"
-            className="text-blue-600 border-blue-300 hover:bg-blue-50"
-          >
-            Mark as Returned
-          </Button>
-        )}
-
-        {/* Owner actions for regular borrowed books */}
-        {isOwner && book.status === 'return_pending' && (
-          <Button
-            onClick={handleConfirmReturn}
-            variant="secondary"
-            size="sm"
-            className="text-blue-600 border-blue-300 hover:bg-blue-50"
-          >
-            Confirm Return
-          </Button>
-        )}
       </div>
     </Card>
   );
 }
+
+
+
+
+// Complete Fixed BookshelfView - Horizontal Mobile + Proper Spine Text
+function BookshelfView({ books, onBookClick }: { 
+  books: Book[]; 
+  onBookClick: (book: Book) => void;
+}) {
+  const [selectedBook, setSelectedBook] = useState<Book | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Check if mobile on mount and resize
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Generate spine color based on genre or title
+  const getSpineColor = (book: Book) => {
+    const colors = [
+      '#8B4513', '#2C3E50', '#E74C3C', '#3498DB', '#2ECC71', '#F39C12',
+      '#9B59B6', '#34495E', '#E67E22', '#1ABC9C', '#95A5A6', '#D35400',
+      '#7F8C8D', '#27AE60', '#8E44AD', '#C0392B', '#16A085', '#F1C40F'
+    ];
+    
+    const seed = book.genre || book.title;
+    const hash = seed.split('').reduce((a, b) => {
+      a = ((a << 5) - a) + b.charCodeAt(0);
+      return a & a;
+    }, 0);
+    
+    return colors[Math.abs(hash) % colors.length];
+  };
+
+  // Calculate spine height with realistic variation
+  const getSpineHeight = (book: Book) => {
+    let height = 200;
+    
+    // Adjust based on title length
+    if (book.title.length > 20) height += 30;
+    if (book.title.length > 40) height += 20;
+    
+    // Add consistent variation based on title
+    const titleHash = book.title.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+    height += (titleHash % 80) - 40; // ±40px variation
+    
+    return Math.max(160, Math.min(300, height));
+  };
+
+  // Calculate spine width - keep reasonable
+  const getSpineWidth = (book: Book) => {
+    let width = 35;
+    
+    // Slight width variation
+    const authorHash = book.author.split('').reduce((a, b) => a + b.charCodeAt(0), 0);
+    width += (authorHash % 10) - 5; // ±5px variation
+    
+    return Math.max(28, Math.min(50, width));
+  };
+
+  // Handle book click - show detailed view
+  const handleBookClick = (book: Book) => {
+    setSelectedBook(book);
+  };
+
+  // Close detailed view
+  const closeDetailedView = () => {
+    setSelectedBook(null);
+  };
+
+  // Group books into shelves (for desktop bookshelf display)
+  const booksPerShelf = isMobile ? books.length : 12; // All books on mobile, 12 per shelf on desktop
+  const shelves = [];
+  for (let i = 0; i < books.length; i += booksPerShelf) {
+    shelves.push(books.slice(i, i + booksPerShelf));
+  }
+
+  // If a book is selected, show detailed view
+  if (selectedBook) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto relative">
+          {/* Close button */}
+          <button
+            onClick={closeDetailedView}
+            className="absolute top-4 right-4 z-10 bg-gray-100 hover:bg-gray-200 rounded-full p-2 transition-colors"
+            title="Back to bookshelf"
+          >
+            <X className="w-5 h-5 text-gray-600" />
+          </button>
+          
+          {/* Show the full BookCard */}
+          <div className="p-4">
+            <BookCard 
+              book={selectedBook}
+              onEdit={() => {
+                closeDetailedView();
+                onBookClick(selectedBook);
+              }}
+              onDelete={() => {
+                closeDetailedView();
+                // Handle delete if needed
+              }}
+              isOwner={true}
+            />
+          </div>
+          
+          {/* Back to shelf button */}
+          <div className="p-4 border-t">
+            <Button 
+              onClick={closeDetailedView}
+              className="w-full"
+              variant="secondary"
+            >
+              📚 Back to Bookshelf
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full bg-gradient-to-b from-amber-50 to-amber-100 rounded-lg p-6 shadow-inner">
+      <div className="mb-4 text-center">
+        <h2 className="text-2xl font-bold text-amber-900 mb-2">📚 Your Personal Library</h2>
+        <p className="text-amber-700">Click any book to view details • Hover to see info</p>
+      </div>
+      
+      {isMobile ? (
+        /* MOBILE: Horizontal scrolling spine view */
+        <div className="overflow-x-auto">
+          <h3 className="text-lg font-semibold text-amber-800 mb-4">📱 Mobile Spine View</h3>
+          <div className="flex gap-2 pb-4" style={{ minWidth: 'max-content' }}>
+            {books.map((book) => {
+              const spineHeight = getSpineHeight(book);
+              const spineWidth = getSpineWidth(book);
+              const spineColor = getSpineColor(book);
+              
+              return (
+                <div
+                  key={book.id}
+                  className="relative cursor-pointer transition-all duration-300 hover:transform hover:-translate-y-2 hover:scale-105 hover:z-10 group"
+                  style={{ 
+                    height: `${Math.min(spineHeight, 250)}px`, // Limit height on mobile
+                    width: `${spineWidth}px`
+                  }}
+                  onClick={() => handleBookClick(book)}
+                  title={`${book.title} by ${book.author}`}
+                >
+                  {/* Mobile spine - same as desktop but smaller */}
+                  <div 
+                    className="h-full w-full rounded-sm relative shadow-lg group-hover:shadow-xl"
+                    style={{
+                      background: `linear-gradient(to right, 
+                        ${spineColor}, 
+                        ${spineColor}dd, 
+                        ${spineColor}aa,
+                        #333333aa)`,
+                      boxShadow: `
+                        inset -3px 0 8px rgba(0,0,0,0.3),
+                        inset 2px 0 4px rgba(255,255,255,0.2),
+                        2px 0 12px rgba(0,0,0,0.4)
+                      `
+                    }}
+                  >
+                    {/* Left edge highlight */}
+                    <div className="absolute left-0 top-0 w-1 h-full bg-white opacity-40 rounded-l-sm" />
+                    
+                    {/* Right edge shadow */}
+                    <div className="absolute right-0 top-0 w-1 h-full bg-black opacity-30 rounded-r-sm" />
+                    
+                    {/* FIXED: Full-height spine text like grid view */}
+                    <div 
+                      className="absolute inset-0 flex items-center justify-center"
+                      style={{ 
+                        writingMode: 'vertical-rl', 
+                        textOrientation: 'mixed',
+                        padding: '6px 2px'
+                      }}
+                    >
+                      <div className="text-white text-center h-full flex flex-col justify-between">
+                        {/* Title - uses most of the spine height */}
+                        <div 
+                          className="font-bold leading-tight tracking-wide flex-1 flex items-center"
+                          style={{ 
+                            fontSize: spineWidth > 35 ? '11px' : '9px',
+                            textShadow: '1px 1px 3px rgba(0,0,0,0.8)',
+                            wordBreak: 'break-word',
+                            lineHeight: '1.2'
+                          }}
+                        >
+                          <span>
+                            {book.title.toUpperCase()}
+                          </span>
+                        </div>
+                        
+                        {/* Author - bottom section */}
+                        <div 
+                          className="leading-tight opacity-90 mt-auto"
+                          style={{ 
+                            fontSize: spineWidth > 35 ? '9px' : '7px',
+                            textShadow: '1px 1px 3px rgba(0,0,0,0.8)',
+                            lineHeight: '1.1'
+                          }}
+                        >
+                          <span>
+                            {book.author.toUpperCase()}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Status indicators */}
+                    <div className="absolute top-2 left-1/2 transform -translate-x-1/2 space-y-1">
+                      {book.is_free_to_good_home && (
+                        <div className="w-2 h-2 bg-green-400 rounded-full border border-white shadow-sm" title="Free to Good Home" />
+                      )}
+                      {book.claimed_by_user_id && (
+                        <div className="w-2 h-2 bg-yellow-400 rounded-full border border-white shadow-sm" title="Claimed" />
+                      )}
+                      {book.status === 'borrowed' && (
+                        <div className="w-2 h-2 bg-blue-400 rounded-full border border-white shadow-sm" title="Borrowed" />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        /* DESKTOP: Traditional bookshelf view */
+        <div className="space-y-8">
+          {shelves.map((shelfBooks, shelfIndex) => (
+            <div key={shelfIndex} className="relative">
+              {/* Bookshelf */}
+              <div 
+                className="relative flex items-end justify-center gap-1 p-4 rounded-lg shadow-lg overflow-x-auto"
+                style={{
+                  background: `linear-gradient(to bottom, 
+                    #8B4513 0%, 
+                    #654321 50%, 
+                    #5D4037 100%)`,
+                  boxShadow: `
+                    inset 0 -8px 16px rgba(0,0,0,0.3),
+                    0 4px 8px rgba(0,0,0,0.2)
+                  `,
+                  minHeight: '320px'
+                }}
+              >
+                {/* Wood grain texture overlay */}
+                <div 
+                  className="absolute inset-0 opacity-20 rounded-lg"
+                  style={{
+                    backgroundImage: `repeating-linear-gradient(
+                      90deg,
+                      transparent,
+                      transparent 2px,
+                      rgba(139, 69, 19, 0.1) 2px,
+                      rgba(139, 69, 19, 0.1) 4px
+                    )`
+                  }}
+                />
+                
+                {/* Books on this shelf */}
+                {shelfBooks.map((book, bookIndex) => {
+                  const spineHeight = getSpineHeight(book);
+                  const spineWidth = getSpineWidth(book);
+                  const spineColor = getSpineColor(book);
+                  
+                  return (
+                    <div
+                      key={book.id}
+                      className="relative cursor-pointer transition-all duration-300 hover:transform hover:-translate-y-3 hover:scale-105 hover:z-20 group"
+                      style={{ 
+                        height: `${spineHeight}px`,
+                        width: `${spineWidth}px`
+                      }}
+                      onClick={() => handleBookClick(book)}
+                      title={`${book.title} by ${book.author}`}
+                    >
+                      {/* Book Spine */}
+                      <div 
+                        className="h-full w-full rounded-sm relative shadow-lg group-hover:shadow-xl"
+                        style={{
+                          background: `linear-gradient(to right, 
+                            ${spineColor}, 
+                            ${spineColor}dd, 
+                            ${spineColor}aa,
+                            #333333aa)`,
+                          boxShadow: `
+                            inset -3px 0 8px rgba(0,0,0,0.3),
+                            inset 2px 0 4px rgba(255,255,255,0.2),
+                            2px 0 12px rgba(0,0,0,0.4)
+                          `
+                        }}
+                      >
+                        {/* Left edge highlight */}
+                        <div className="absolute left-0 top-0 w-1 h-full bg-white opacity-40 rounded-l-sm" />
+                        
+                        {/* Right edge shadow */}
+                        <div className="absolute right-0 top-0 w-1 h-full bg-black opacity-30 rounded-r-sm" />
+                        
+                        {/* FIXED: Full-height spine text layout like grid view */}
+                        <div 
+                          className="absolute inset-0 flex items-center justify-center"
+                          style={{ 
+                            writingMode: 'vertical-rl', 
+                            textOrientation: 'mixed',
+                            padding: '8px 4px'
+                          }}
+                        >
+                          <div className="text-white text-center h-full flex flex-col justify-between">
+                            {/* Title - uses most of the spine height */}
+                            <div 
+                              className="font-bold leading-tight tracking-wide flex-1 flex items-center"
+                              style={{ 
+                                fontSize: spineWidth > 35 ? '12px' : '10px',
+                                textShadow: '1px 1px 3px rgba(0,0,0,0.8)',
+                                wordBreak: 'break-word',
+                                lineHeight: '1.2'
+                              }}
+                            >
+                              <span style={{ transform: 'rotate(0deg)' }}>
+                                {book.title.toUpperCase()}
+                              </span>
+                            </div>
+                            
+                            {/* Author - bottom section */}
+                            <div 
+                              className="leading-tight opacity-90 mt-auto"
+                              style={{ 
+                                fontSize: spineWidth > 35 ? '10px' : '8px',
+                                textShadow: '1px 1px 3px rgba(0,0,0,0.8)',
+                                lineHeight: '1.1'
+                              }}
+                            >
+                              <span style={{ transform: 'rotate(0deg)' }}>
+                                {book.author.toUpperCase()}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Status Indicators - positioned at top */}
+                        <div className="absolute top-2 left-1/2 transform -translate-x-1/2 space-y-1">
+                          {book.is_free_to_good_home && (
+                            <div className="w-2 h-2 bg-green-400 rounded-full border border-white shadow-sm" title="Free to Good Home" />
+                          )}
+                          {book.claimed_by_user_id && (
+                            <div className="w-2 h-2 bg-yellow-400 rounded-full border border-white shadow-sm" title="Claimed" />
+                          )}
+                          {book.status === 'borrowed' && (
+                            <div className="w-2 h-2 bg-blue-400 rounded-full border border-white shadow-sm" title="Borrowed" />
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Improved Hover Tooltip - positioned to avoid clipping */}
+                      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-4 px-3 py-2 bg-gray-900 text-white text-xs rounded-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-30 pointer-events-none shadow-lg">
+                        <div className="font-semibold">{book.title}</div>
+                        <div className="text-gray-300">by {book.author}</div>
+                        {book.genre && (
+                          <div className="text-gray-400 capitalize">{book.genre.replace('-', ' ')}</div>
+                        )}
+                        {/* Tooltip arrow */}
+                        <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                      </div>
+                    </div>
+                  );
+                })}
+                
+                {/* Shelf Label */}
+                <div className="absolute bottom-1 right-4 text-amber-200 text-xs font-medium opacity-70">
+                  Shelf {shelfIndex + 1}
+                </div>
+              </div>
+              
+              {/* Shelf Support */}
+              <div 
+                className="w-full h-3 -mt-1 rounded-b-lg shadow-md"
+                style={{
+                  background: `linear-gradient(to bottom, #5D4037, #4E342E)`,
+                  boxShadow: `0 4px 8px rgba(0,0,0,0.3)`
+                }}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+      
+      {/* Library Stats */}
+      <div className="mt-6 text-center text-amber-700">
+        <p className="text-sm">
+          📚 {books.length} books {!isMobile && `across ${shelves.length} shelf${shelves.length !== 1 ? 'es' : ''}`}
+          • {books.filter(b => b.status === 'available').length} available 
+          • {books.filter(b => b.is_free_to_good_home).length} free to good home
+        </p>
+      </div>
+    </div>
+  );
+}
+// Add this to your main library component - Toggle between grid and bookshelf view
+function LibraryViewToggle({ 
+  viewMode, 
+  onViewModeChange 
+}: { 
+  viewMode: 'grid' | 'bookshelf';
+  onViewModeChange: (mode: 'grid' | 'bookshelf') => void;
+}) {
+  return (
+    <div className="flex justify-center mb-6">
+      <div className="bg-white rounded-lg p-1 shadow-md border-2 border-amber-200">
+        <button
+          onClick={() => onViewModeChange('grid')}
+          className={`px-4 py-2 rounded-md font-medium transition-all ${
+            viewMode === 'grid'
+              ? 'bg-amber-500 text-white shadow-md'
+              : 'text-amber-700 hover:bg-amber-50'
+          }`}
+        >
+          📊 Grid View
+        </button>
+        <button
+          onClick={() => onViewModeChange('bookshelf')}
+          className={`px-4 py-2 rounded-md font-medium transition-all ${
+            viewMode === 'bookshelf'
+              ? 'bg-amber-500 text-white shadow-md'
+              : 'text-amber-700 hover:bg-amber-50'
+          }`}
+        >
+          📚 Bookshelf View
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Simplified BarcodeScanner Component - No TypeScript Issues
+function BarcodeScanner({ 
+  isOpen, 
+  onClose, 
+  onBarcodeDetected 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  onBarcodeDetected: (isbn: string) => void; 
+}) {
+  const scannerRef = useRef<HTMLDivElement>(null);
+  const [isInitializing, setIsInitializing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      initializeScanner();
+    } else {
+      stopScanner();
+    }
+
+    return () => stopScanner();
+  }, [isOpen]);
+
+  const initializeScanner = async () => {
+    setIsInitializing(true);
+    setError(null);
+
+    try {
+      // Check if we have camera permissions
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      stream.getTracks().forEach(track => track.stop());
+      setHasPermission(true);
+
+      // Simple require instead of dynamic import
+      const Quagga = require('quagga');
+
+      Quagga.init({
+        inputStream: {
+          name: "Live",
+          type: "LiveStream",
+          target: scannerRef.current,
+          constraints: {
+            width: 640,
+            height: 480,
+            facingMode: "environment"
+          }
+        },
+        decoder: {
+          readers: ["ean_reader", "ean_8_reader"]
+        },
+        locate: true
+      }, (err: any) => {
+        if (err) {
+          console.error('QuaggaJS initialization error:', err);
+          setError('Failed to initialize camera scanner');
+          setIsInitializing(false);
+          return;
+        }
+        Quagga.start();
+        setIsInitializing(false);
+      });
+
+      // Listen for barcode detection
+      Quagga.onDetected((data: any) => {
+        const code = data.codeResult.code;
+        
+        // Validate ISBN format
+        if (code && (code.startsWith('978') || code.startsWith('979')) && code.length >= 12) {
+          onBarcodeDetected(code);
+          stopScanner();
+          onClose();
+        }
+      });
+
+    } catch (error: any) {
+      console.error('Camera access error:', error);
+      setHasPermission(false);
+      setError('Camera access denied. Please allow camera permissions to scan barcodes.');
+      setIsInitializing(false);
+    }
+  };
+
+  const stopScanner = () => {
+    try {
+      const Quagga = require('quagga');
+      if (Quagga.initialized) {
+        Quagga.stop();
+      }
+    } catch (error) {
+      // QuaggaJS might not be loaded yet
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg max-w-md w-full p-6">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Scan Book Barcode</h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600"
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start">
+            <AlertCircle className="w-5 h-5 text-red-500 mr-2 flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-red-600">{error}</p>
+          </div>
+        )}
+
+        {hasPermission === false && (
+          <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-sm text-yellow-700">
+              Please allow camera access to scan barcodes. You may need to refresh the page and try again.
+            </p>
+          </div>
+        )}
+
+        {isInitializing && (
+          <div className="text-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <p className="text-gray-600">Initializing camera...</p>
+          </div>
+        )}
+
+        {/* Scanner viewport */}
+        <div className="relative bg-gray-100 rounded-lg overflow-hidden" style={{ height: '300px' }}>
+          <div ref={scannerRef} className="w-full h-full" />
+          
+          {/* Scanner overlay guide */}
+          {!isInitializing && !error && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+              <div className="border-2 border-green-500 bg-transparent" style={{
+                width: '200px',
+                height: '60px',
+                boxShadow: '0 0 0 300px rgba(0,0,0,0.3)'
+              }}>
+                <div className="absolute -top-6 left-0 right-0 text-center">
+                  <span className="text-white text-sm font-medium bg-black bg-opacity-50 px-2 py-1 rounded">
+                    Align barcode here
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="mt-4 text-center">
+          <p className="text-sm text-gray-600">
+            📱 Point your camera at the book's barcode
+          </p>
+          <p className="text-xs text-gray-500 mt-1">
+            Works best with ISBN barcodes (starting with 978 or 979)
+          </p>
+        </div>
+
+        <div className="mt-4 flex space-x-3">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+          >
+            Cancel
+          </button>
+          {error && (
+            <button
+              onClick={() => {
+                setError(null);
+                initializeScanner();
+              }}
+              className="flex-1 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors"
+            >
+              Try Again
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+
 // Enhanced Add Book Modal Component with ISBN Auto-Lookup
+// Enhanced Add Book Modal Component with Gorgeous Image Upload
 function AddBookModal({ 
   isOpen, 
   onClose, 
@@ -2136,10 +2976,16 @@ function AddBookModal({
     condition: 'good',
     notes: ''
   });
+  const [coverImage, setCoverImage] = useState<File | null>(null);
+  const [spineImage, setSpineImage] = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState<string | null>(null);
+  const [spinePreview, setSpinePreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLookingUp, setIsLookingUp] = useState(false);
+  const [isUploadingImages, setIsUploadingImages] = useState(false);
   const [autoFilledFields, setAutoFilledFields] = useState<string[]>([]);
   const [error, setError] = useState('');
+  const [showScanner, setShowScanner] = useState(false);
 
   const conditionOptions = [
     { value: 'excellent', label: 'Excellent' },
@@ -2163,20 +3009,47 @@ function AddBookModal({
     { value: 'other', label: 'Other' }
   ];
 
+  // Handle image file selection
+  const handleImageSelect = (file: File, type: 'cover' | 'spine') => {
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        if (type === 'cover') {
+          setCoverImage(file);
+          setCoverPreview(result);
+        } else {
+          setSpineImage(file);
+          setSpinePreview(result);
+        }
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Remove image
+  const removeImage = (type: 'cover' | 'spine') => {
+    if (type === 'cover') {
+      setCoverImage(null);
+      setCoverPreview(null);
+    } else {
+      setSpineImage(null);
+      setSpinePreview(null);
+    }
+  };
+
   // Google Books API lookup function
   const fetchBookDataFromISBN = async (isbn: string) => {
     try {
       setIsLookingUp(true);
       setError('');
 
-      // Clean ISBN (remove hyphens/spaces)
       const cleanISBN = isbn.replace(/[-\s]/g, '');
       
       if (cleanISBN.length !== 10 && cleanISBN.length !== 13) {
         throw new Error('Please enter a valid 10 or 13 digit ISBN');
       }
 
-      // Call Google Books API
       const response = await fetch(
         `https://www.googleapis.com/books/v1/volumes?q=isbn:${cleanISBN}&maxResults=1`
       );
@@ -2193,8 +3066,6 @@ function AddBookModal({
 
       const book = data.items[0].volumeInfo;
       const filledFields: string[] = [];
-
-      // Auto-populate form data (only if fields are empty)
       const updates: any = {};
 
       if (book.title && !formData.title) {
@@ -2217,8 +3088,6 @@ function AddBookModal({
 
       if (book.categories && book.categories.length > 0 && !formData.genre) {
         const category = book.categories[0].toLowerCase();
-        
-        // Map Google Books categories to our genre options
         const genreMap: { [key: string]: string } = {
           'fiction': 'fiction',
           'biography': 'biography',
@@ -2243,11 +3112,14 @@ function AddBookModal({
         }
       }
 
-      // Update form data
+      // Auto-set cover image from Google Books if no custom image uploaded
+      if (book.imageLinks?.thumbnail && !coverImage) {
+        setCoverPreview(book.imageLinks.thumbnail);
+        filledFields.push('cover');
+      }
+
       setFormData(prev => ({ ...prev, ...updates }));
       setAutoFilledFields(filledFields);
-
-      console.log('Book data fetched successfully:', book);
 
     } catch (error: any) {
       console.error('ISBN lookup error:', error);
@@ -2260,12 +3132,10 @@ function AddBookModal({
   // Handle ISBN input change with auto-lookup
   const handleISBNChange = (value: string) => {
     setFormData(prev => ({ ...prev, isbn: value }));
-    setAutoFilledFields([]); // Clear auto-fill indicators when ISBN changes
+    setAutoFilledFields([]);
     
-    // Auto-lookup when user enters valid ISBN length
     const cleanISBN = value.replace(/[-\s]/g, '');
     if (cleanISBN.length === 10 || cleanISBN.length === 13) {
-      // Debounce the lookup to avoid too many API calls
       const timeoutId = setTimeout(() => {
         fetchBookDataFromISBN(value);
       }, 500);
@@ -2274,10 +3144,43 @@ function AddBookModal({
     }
   };
 
-  // Manual lookup button handler
-  const handleManualLookup = () => {
-    if (formData.isbn.trim()) {
-      fetchBookDataFromISBN(formData.isbn.trim());
+  // Handle barcode detection from scanner
+const handleBarcodeDetected = (isbn: string) => {
+  setFormData(prev => ({ ...prev, isbn }));
+  // Trigger auto-lookup after a short delay
+  setTimeout(() => {
+    fetchBookDataFromISBN(isbn);
+  }, 100);
+};
+
+  // Upload images to the book
+  const uploadImages = async (bookId: string) => {
+    if (!coverImage && !spineImage) return;
+
+    try {
+      setIsUploadingImages(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+
+      const formData = new FormData();
+      if (coverImage) formData.append('cover', coverImage);
+      if (spineImage) formData.append('spine', spineImage);
+
+      const response = await fetch(`/api/books/${bookId}/upload-image`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: formData
+      });
+
+      if (!response.ok) {
+        console.error('Failed to upload images');
+      }
+    } catch (error) {
+      console.error('Image upload error:', error);
+    } finally {
+      setIsUploadingImages(false);
     }
   };
 
@@ -2317,6 +3220,11 @@ function AddBookModal({
         throw new Error(result.error || 'Failed to add book');
       }
 
+      // Upload images if any
+      if (coverImage || spineImage) {
+        await uploadImages(result.book.id);
+      }
+
       onBookAdded(result.book);
       
       // Reset form
@@ -2329,6 +3237,10 @@ function AddBookModal({
         condition: 'good',
         notes: ''
       });
+      setCoverImage(null);
+      setSpineImage(null);
+      setCoverPreview(null);
+      setSpinePreview(null);
       setAutoFilledFields([]);
       onClose();
 
@@ -2344,7 +3256,7 @@ function AddBookModal({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[95vh] overflow-y-auto">
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-semibold text-gray-900">Add New Book</h2>
@@ -2362,7 +3274,6 @@ function AddBookModal({
             </div>
           )}
 
-          {/* Auto-fill success message */}
           {autoFilledFields.length > 0 && (
             <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
               <p className="text-sm text-green-600">
@@ -2371,42 +3282,142 @@ function AddBookModal({
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* ISBN Field with Lookup */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                ISBN
-              </label>
-              <div className="flex space-x-2">
-                <input
-                  type="text"
-                  value={formData.isbn}
-                  onChange={(e) => handleISBNChange(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
-                  placeholder="978-0-123456-78-9"
-                />
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={handleManualLookup}
-                  disabled={!formData.isbn.trim() || isLookingUp}
-                  className="whitespace-nowrap"
-                >
-                  {isLookingUp ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin mr-2"></div>
-                      Looking up...
-                    </>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Image Upload Section */}
+            <div className="bg-gray-50 rounded-lg p-4">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">📸 Book Images</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                
+                {/* Cover Image */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Cover Image
+                  </label>
+                  {coverPreview ? (
+                    <div className="relative">
+                      <img 
+                        src={coverPreview} 
+                        alt="Cover preview" 
+                        className="w-full h-48 object-cover rounded-lg border-2 border-gray-200"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeImage('cover')}
+                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
                   ) : (
-                    <>📚 Lookup</>
+                    <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                        <Plus className="w-8 h-8 mb-4 text-gray-500" />
+                        <p className="mb-2 text-sm text-gray-500">
+                          <span className="font-semibold">Click to upload</span> or drag and drop
+                        </p>
+                        <p className="text-xs text-gray-500">PNG, JPG, JPEG (MAX. 5MB)</p>
+                      </div>
+                      <input 
+                        type="file" 
+                        className="hidden" 
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleImageSelect(file, 'cover');
+                        }}
+                      />
+                    </label>
                   )}
-                </Button>
+                </div>
+
+                {/* Spine Image */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Spine Image <span className="text-gray-500">(for bookshelf view)</span>
+                  </label>
+                  {spinePreview ? (
+                    <div className="relative">
+                      <img 
+                        src={spinePreview} 
+                        alt="Spine preview" 
+                        className="w-full h-48 object-cover rounded-lg border-2 border-gray-200"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeImage('spine')}
+                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100">
+                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                        <BookOpen className="w-8 h-8 mb-4 text-gray-500" />
+                        <p className="mb-2 text-sm text-gray-500">
+                          <span className="font-semibold">Upload spine image</span>
+                        </p>
+                        <p className="text-xs text-gray-500">For beautiful shelf view</p>
+                      </div>
+                      <input 
+                        type="file" 
+                        className="hidden" 
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleImageSelect(file, 'spine');
+                        }}
+                      />
+                    </label>
+                  )}
+                </div>
               </div>
-              <p className="text-xs text-gray-500 mt-1">
-                Enter ISBN and we'll auto-fill book details from Google Books
-              </p>
             </div>
 
+            {/* ISBN Field with Scanner */}
+<div>
+  <label className="block text-sm font-medium text-gray-700 mb-1">
+    ISBN
+  </label>
+  <div className="flex space-x-2">
+    <input
+      type="text"
+      value={formData.isbn}
+      onChange={(e) => handleISBNChange(e.target.value)}
+      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+      placeholder="978-0-123456-78-9"
+    />
+    <button
+      type="button"
+      onClick={() => setShowScanner(true)}
+      className="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors flex items-center space-x-2"
+    >
+      <Camera className="w-4 h-4" />
+      <span>Scan</span>
+    </button>
+    <Button
+      type="button"
+      variant="secondary"
+      onClick={() => formData.isbn && fetchBookDataFromISBN(formData.isbn)}
+      disabled={!formData.isbn.trim() || isLookingUp}
+      className="whitespace-nowrap"
+    >
+      {isLookingUp ? (
+        <>
+          <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin mr-2"></div>
+          Looking up...
+        </>
+      ) : (
+        <>📚 Lookup</>
+      )}
+    </Button>
+  </div>
+  <p className="text-xs text-gray-500 mt-1">
+    Scan barcode, enter ISBN manually, or we'll auto-fill book details
+  </p>
+</div>
+
+            {/* Rest of the form fields */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -2514,10 +3525,22 @@ function AddBookModal({
             <div className="flex space-x-3 pt-4">
               <Button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || isUploadingImages}
                 className="flex-1"
               >
-                {isSubmitting ? 'Adding...' : 'Add Book'}
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Adding Book...
+                  </>
+                ) : isUploadingImages ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Uploading Images...
+                  </>
+                ) : (
+                  'Add Book'
+                )}
               </Button>
               <Button
                 type="button"
@@ -2529,8 +3552,15 @@ function AddBookModal({
               </Button>
             </div>
           </form>
-        </div>
+          </div>
       </div>
+
+      {/* Barcode Scanner Modal */}
+      <BarcodeScanner
+        isOpen={showScanner}
+        onClose={() => setShowScanner(false)}
+        onBarcodeDetected={handleBarcodeDetected}
+      />
     </div>
   );
 }
@@ -2809,6 +3839,7 @@ function MyLibrary() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [error, setError] = useState('');
+  const [libraryViewMode, setLibraryViewMode] = useState<'grid' | 'bookshelf'>('grid');
 
   // Fetch books on component mount
   useEffect(() => {
@@ -2972,39 +4003,53 @@ function MyLibrary() {
         </div>
       </Card>
 
-      {/* Books Grid */}
-      {filteredBooks.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredBooks.map(book => (
-  <div key={book.id} data-book-id={book.id}>
-    <BookCard 
-      book={book} 
-      onEdit={handleEditBook}
-      onDelete={handleDeleteBook}
-    />
-  </div>
-))}
+      {/* Add the bookshelf toggle BEFORE the books grid */}
+<LibraryViewToggle 
+  viewMode={libraryViewMode}
+  onViewModeChange={setLibraryViewMode}
+/>
+
+{/* Books Grid or Bookshelf View */}
+{filteredBooks.length > 0 ? (
+  libraryViewMode === 'grid' ? (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {filteredBooks.map(book => (
+        <div key={book.id} data-book-id={book.id}>
+          <BookCard 
+            book={book} 
+            onEdit={handleEditBook}
+            onDelete={handleDeleteBook}
+          />
         </div>
-      ) : (
-        <Card className="p-8 text-center">
-          <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
-            {searchTerm || filterStatus !== 'all' ? 'No books found' : 'No books yet'}
-          </h3>
-          <p className="text-gray-600 mb-4">
-            {searchTerm || filterStatus !== 'all' 
-              ? "Try adjusting your search or filters" 
-              : "Start building your library by adding your first book"
-            }
-          </p>
-          {!searchTerm && filterStatus === 'all' && (
-            <Button onClick={() => setIsAddModalOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Your First Book
-            </Button>
-          )}
-        </Card>
-      )}
+      ))}
+    </div>
+  ) : (
+    <BookshelfView 
+      books={filteredBooks} 
+      onBookClick={(book) => {
+        setLibraryViewMode('grid');
+        handleEditBook(book);
+      }} 
+    />
+  )
+) : (
+  <Card className="p-8 text-center">
+    <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+      {searchTerm || filterStatus !== 'all' ? 'No books found' : 'No books yet'}
+    </h3>
+    <p className="text-gray-600 mb-4">
+      {searchTerm || filterStatus !== 'all' 
+        ? 'Try adjusting your search terms or filters.'
+        : 'Add your first book to get started building your library!'
+      }
+    </p>
+    <Button onClick={() => setIsAddModalOpen(true)}>
+      <Plus className="w-4 h-4 mr-2" />
+      Add Your First Book
+    </Button>
+  </Card>
+)}
 
       {/* Add Book Modal */}
       <AddBookModal

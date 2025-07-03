@@ -23,7 +23,7 @@ export async function GET(
       return NextResponse.json({ books: [] });
     }
 
-    // Get available books WITH FREE TO GOOD HOME FIELDS AND TRANSFER STATUS
+    // Get available books WITH FREE TO GOOD HOME FIELDS, TRANSFER STATUS, AND IMAGES
     const { data: books, error } = await supabase
       .from('books')
       .select(`
@@ -33,6 +33,10 @@ export async function GET(
         claimed_by_user_id,
         claimed_at,
         claim_expires_at,
+        cover_image_url,
+        spine_image_url,
+        has_custom_cover,
+        has_custom_spine,
         book_status!inner(status),
         book_transfers!left(
           id,
@@ -48,7 +52,7 @@ export async function GET(
 
     if (error) throw error;
 
-    // Transform to match your Book interface WITH NEW FIELDS AND TRANSFER STATUS
+    // Transform to match your Book interface WITH NEW FIELDS, TRANSFER STATUS, AND IMAGES
     const transformedBooks = books?.map(book => {
       // Get the most recent pending transfer
       const pendingTransfer = book.book_transfers?.find(
@@ -72,9 +76,14 @@ export async function GET(
         claimed_by_user_id: book.claimed_by_user_id || null,
         claimed_at: book.claimed_at || null,
         claim_expires_at: book.claim_expires_at || null,
-        // NEW TRANSFER FIELDS:
+        // TRANSFER FIELDS:
         transfer_status: pendingTransfer ? 'pending' : 'none',
-        transfer_id: pendingTransfer?.id || null
+        transfer_id: pendingTransfer?.id || null,
+        // NEW IMAGE FIELDS:
+        cover_image_url: book.cover_image_url || null,
+        spine_image_url: book.spine_image_url || null,
+        has_custom_cover: book.has_custom_cover || false,
+        has_custom_spine: book.has_custom_spine || false
       };
     }) || [];
 
