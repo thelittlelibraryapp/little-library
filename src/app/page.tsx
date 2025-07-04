@@ -21,6 +21,7 @@ import {
   XCircle,
   Mail,
   Trophy,
+  Upload,
   Gift,
   Send,
   Bell,
@@ -28,8 +29,9 @@ import {
   Truck,
   CircleCheck,
   Camera,
-  AlertCircle
-  
+  AlertCircle,
+  Download,
+    
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
 
@@ -1231,7 +1233,7 @@ function Dashboard() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
   const [isLoadingActivity, setIsLoadingActivity] = useState(true);
-
+  
   
   const [stats, setStats] = useState({
     totalBooks: 0,
@@ -3840,6 +3842,7 @@ function MyLibrary() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [error, setError] = useState('');
   const [libraryViewMode, setLibraryViewMode] = useState<'grid' | 'bookshelf'>('grid');
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
 
   // Fetch books on component mount
   useEffect(() => {
@@ -3950,15 +3953,24 @@ function MyLibrary() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">My Library</h1>
-          <p className="text-gray-600">Manage your book collection ({books.length} books)</p>
-        </div>
-        <Button onClick={() => setIsAddModalOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Add Book
-        </Button>
-      </div>
+  <div>
+    <h1 className="text-2xl font-bold text-gray-900">My Library</h1>
+    <p className="text-gray-600">Manage your book collection ({books.length} books)</p>
+  </div>
+  <div className="flex space-x-3">
+    <Button onClick={() => setIsAddModalOpen(true)}>
+      <Plus className="w-4 h-4 mr-2" />
+      Add Book
+    </Button>
+    <Button 
+      onClick={() => setIsImportModalOpen(true)}
+      className="bg-green-500 text-white hover:bg-green-600"
+    >
+      <Upload className="w-4 h-4 mr-2" />
+      Import from Goodreads
+    </Button>
+  </div>
+</div>
 
       {/* Error Message */}
       {error && (
@@ -4057,6 +4069,8 @@ function MyLibrary() {
         onClose={() => setIsAddModalOpen(false)}
         onBookAdded={handleBookAdded}
       />
+
+      
 
       {/* Edit Book Modal */}
       <EditBookModal
@@ -4731,6 +4745,331 @@ function FriendLibraryModal({ friend, isOpen, onClose }: {
     </div>
   );
 }
+
+// Add this function after your MyLibrary component ends
+function GoodreadsImport({ onImportComplete, onClose }: { onImportComplete: () => void; onClose: () => void; }) {
+  const [file, setFile] = useState<File | null>(null);
+  const [csvData, setCsvData] = useState<any[]>([]);
+  const [preview, setPreview] = useState<any[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [importResults, setImportResults] = useState<any>(null);
+  const [step, setStep] = useState('upload'); // upload, preview, importing, results
+  const [importOptions, setImportOptions] = useState<{
+    onlyOwned: boolean;
+    skipDuplicates: boolean;
+    maxBooks: number | null;
+  }>({
+    onlyOwned: true,
+    skipDuplicates: true,
+    maxBooks: 100
+  });
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = event.target.files?.[0];
+    if (selectedFile && selectedFile.type === 'text/csv') {
+      setFile(selectedFile);
+      parseCSV(selectedFile);
+    } else {
+      alert('Please select a valid CSV file');
+    }
+  };
+
+  const parseCSV = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const lines = text.split('\n');
+      const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
+      
+      const data = [];
+      for (let i = 1; i < lines.length; i++) {
+        if (lines[i].trim()) {
+          const values = lines[i].split(',');
+          const row: any = {};
+          headers.forEach((header, index) => {
+            row[header] = values[index] ? values[index].replace(/"/g, '').trim() : '';
+          });
+          data.push(row);
+        }
+      }
+      
+      setCsvData(data);
+      
+      // Create preview of first 5 books
+      let filteredData = data;
+      if (importOptions.onlyOwned) {
+        filteredData = data.filter(row => row["Owned Copies"] && parseInt(row["Owned Copies"]) > 0);
+      }
+      
+      setPreview(filteredData.slice(0, 5));
+      setStep('preview');
+    };
+    reader.readAsText(file);
+  };
+
+  const handleImport = async () => {
+    setStep('importing');
+    setIsProcessing(true);
+
+    try {
+      // Get auth token
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Not authenticated');
+      }
+
+      // Filter data based on options
+      let dataToImport = csvData;
+      if (importOptions.onlyOwned) {
+        dataToImport = csvData.filter(row => row["Owned Copies"] && parseInt(row["Owned Copies"]) > 0);
+      }
+      
+      if (importOptions.maxBooks) {
+        dataToImport = dataToImport.slice(0, importOptions.maxBooks);
+      }
+
+      const response = await fetch('/api/books/import/goodreads', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          csvData: dataToImport,
+          importOptions
+        })
+      });
+
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || 'Import failed');
+      }
+
+      setImportResults(result.results);
+      setStep('results');
+      
+      // Refresh the parent component's book list
+      onImportComplete();
+
+    } catch (error: any) {
+      console.error('Import error:', error);
+      alert(`Import failed: ${error.message}`);
+      setStep('preview');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const downloadTemplate = () => {
+    const csvContent = `Book Id,Title,Author,Author l-f,Additional Authors,ISBN,ISBN13,My Rating,Average Rating,Publisher,Binding,Number of Pages,Year Published,Original Publication Year,Date Read,Date Added,Bookshelves,Bookshelves with positions,Exclusive Shelf,My Review,Spoiler,Private Notes,Read Count,Owned Copies
+1,"The Great Gatsby","F. Scott Fitzgerald","Fitzgerald, F. Scott","","9780743273565","9780743273565",5,3.93,"Scribner","Paperback",180,2004,1925,"2023/03/15","2023/01/10","fiction, classics","fiction (#1), classics (#2)","read","Amazing book about the American Dream","","Loved the symbolism",1,1`;
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'goodreads_template.csv';
+    a.click();
+    window.URL.revokeObjectURL(url);
+  };
+
+  if (!onClose) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold text-gray-900 flex items-center">
+              📚 Import from Goodreads
+            </h2>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+
+          {step === 'upload' && (
+            <div className="text-center">
+              <div className="mb-6">
+                <BookOpen className="w-16 h-16 text-blue-500 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold mb-2">Import Your Entire Goodreads Library!</h3>
+                <p className="text-gray-600 mb-4">
+                  Export your library from Goodreads and import hundreds of books instantly.
+                </p>
+              </div>
+
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <h4 className="font-semibold text-blue-800 mb-2">How to get your Goodreads data:</h4>
+                <ol className="text-sm text-blue-700 text-left list-decimal list-inside space-y-1">
+                  <li>Go to Goodreads.com → My Books</li>
+                  <li>Click "Import and export" at the bottom</li>
+                  <li>Click "Export Library" and download the CSV file</li>
+                  <li>Upload that CSV file here!</li>
+                </ol>
+              </div>
+
+              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 mb-4">
+                <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-600 mb-4">Select your Goodreads CSV file</p>
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  id="csv-upload"
+                />
+                <label
+                  htmlFor="csv-upload"
+                  className="bg-blue-500 text-white px-6 py-2 rounded-lg cursor-pointer hover:bg-blue-600"
+                >
+                  Choose CSV File
+                </label>
+              </div>
+
+              <button
+                onClick={downloadTemplate}
+                className="text-blue-500 hover:text-blue-600 text-sm flex items-center mx-auto"
+              >
+                <Download className="w-4 h-4 mr-1" />
+                Download sample CSV template
+              </button>
+            </div>
+          )}
+
+          {step === 'preview' && (
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Import Preview</h3>
+              
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                <div className="flex items-center">
+                  <CheckCircle className="w-5 h-5 text-green-500 mr-2" />
+                  <span className="font-semibold text-green-800">
+                    Found {csvData.filter(row => importOptions.onlyOwned ? (row["Owned Copies"] && parseInt(row["Owned Copies"]) > 0) : true).length} books ready to import!
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={importOptions.onlyOwned}
+                    onChange={(e) => setImportOptions({...importOptions, onlyOwned: e.target.checked})}
+                    className="mr-2"
+                  />
+                  Only import books I own
+                </label>
+                <label className="flex items-center">
+                  <input
+                    type="checkbox"
+                    checked={importOptions.skipDuplicates}
+                    onChange={(e) => setImportOptions({...importOptions, skipDuplicates: e.target.checked})}
+                    className="mr-2"
+                  />
+                  Skip duplicates
+                </label>
+              </div>
+
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Maximum books to import (leave empty for all):
+                </label>
+                <input
+                  type="number"
+                  value={importOptions.maxBooks?.toString() || ''}
+                  onChange={(e) => setImportOptions({...importOptions, maxBooks: e.target.value ? parseInt(e.target.value) : null})}
+                  className="w-32 px-3 py-2 border border-gray-300 rounded-lg"
+                  placeholder="All"
+                />
+              </div>
+
+              <div className="mb-6">
+                <h4 className="font-semibold mb-2">Preview (first 5 books):</h4>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {preview.map((book, index) => (
+                    <div key={index} className="border border-gray-200 rounded p-3">
+                      <div className="font-semibold">{book["Title"]}</div>
+                      <div className="text-sm text-gray-600">by {book["Author"]}</div>
+                      <div className="text-xs text-gray-500">
+                        {book["Year Published"]} • {book["Binding"]} • 
+                        {book["My Rating"] && ` Rated ${book["My Rating"]}/5`}
+                        {book["Bookshelves"] && ` • Shelves: ${book["Bookshelves"]}`}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => setStep('upload')}
+                  className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+                >
+                  Back
+                </button>
+                <button
+                  onClick={handleImport}
+                  className="flex-1 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
+                >
+                  Import Books
+                </button>
+              </div>
+            </div>
+          )}
+
+          {step === 'importing' && (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-500 mx-auto mb-4"></div>
+              <h3 className="text-lg font-semibold mb-2">Importing your books...</h3>
+              <p className="text-gray-600">This may take a few minutes for large libraries.</p>
+            </div>
+          )}
+
+          {step === 'results' && importResults && (
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Import Complete!</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-green-600">{importResults.successful}</div>
+                  <div className="text-sm text-green-700">Successfully imported</div>
+                </div>
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-yellow-600">{importResults.skipped}</div>
+                  <div className="text-sm text-yellow-700">Skipped (duplicates/not owned)</div>
+                </div>
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+                  <div className="text-2xl font-bold text-red-600">{importResults.failed}</div>
+                  <div className="text-sm text-red-700">Failed</div>
+                </div>
+              </div>
+
+              {importResults.errors && importResults.errors.length > 0 && (
+                <div className="mb-6">
+                  <h4 className="font-semibold mb-2 text-red-700">Errors:</h4>
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-3 max-h-32 overflow-y-auto">
+                    {importResults.errors.map((error: string, index: number) => (
+                      <div key={index} className="text-sm text-red-700">{error}</div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <button
+                onClick={onClose}
+                className="w-full px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+              >
+                Done
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Borrow Request Modal  
 function BorrowRequestModal({ book, friend, isOpen, onClose }: {
   book: Book | null;
@@ -5017,6 +5356,12 @@ function EnhancedBorrowedBooks() {
     </div>
   );
 }
+
+
+
+
+
+
 // Main App Component
 export default function LittleLibraryApp() {
   const [activeTab, setActiveTab] = useState(() => {
