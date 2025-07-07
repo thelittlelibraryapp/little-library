@@ -2318,14 +2318,45 @@ const startBarcodeScanner = () => {
           <div class="absolute inset-0 border-2 border-red-500 m-8 rounded-lg pointer-events-none"></div>
         </div>
         <div class="bg-white p-4 rounded-b-lg text-center">
-          <button id="close-scanner" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600">
-            Cancel
-          </button>
+          <p class="text-sm text-gray-600">Click outside to cancel or press Escape</p>
         </div>
       </div>
     `;
 
     document.body.appendChild(scannerModal);
+
+    // FIXED: Create centralized cleanup function
+    const cleanup = () => {
+      try {
+        if ((window as any).Quagga) {
+          (window as any).Quagga.stop();
+        }
+      } catch (e: any) {
+        console.log('Quagga cleanup error:', e);
+      }
+      if (document.body.contains(scannerModal)) {
+        document.body.removeChild(scannerModal);
+      }
+    };
+
+    // FIXED: Simple event delegation - background click only
+    scannerModal.addEventListener('click', (e: Event) => {
+      const target = e.target as HTMLElement;
+      
+      // If clicking the background (but not the modal content)
+      if (target === scannerModal) {
+        cleanup();
+      }
+    });
+
+    // FIXED: Add escape key handler
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        cleanup();
+        document.removeEventListener('keydown', handleEscape);
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
 
     // Initialize Quagga with specific camera settings
     const initQuagga = async () => {
@@ -2377,7 +2408,7 @@ const startBarcodeScanner = () => {
           if (err) {
             console.error('Scanner initialization failed:', err);
             alert('Camera access failed. Please ensure you have granted camera permissions and try again.');
-            document.body.removeChild(scannerModal);
+            cleanup();
             return;
           }
           console.log('Scanner initialized successfully');
@@ -2389,9 +2420,9 @@ const startBarcodeScanner = () => {
           const code = result.codeResult.code;
           console.log('Barcode detected:', code);
           
-          // Stop scanner
-          Quagga.stop();
-          document.body.removeChild(scannerModal);
+          // Stop scanner and cleanup
+          cleanup();
+          document.removeEventListener('keydown', handleEscape);
           
           // Set ISBN and trigger lookup
           setFormData(prev => ({ ...prev, isbn: code }));
@@ -2400,22 +2431,11 @@ const startBarcodeScanner = () => {
       } catch (error) {
         console.error('Error initializing scanner:', error);
         alert('Scanner not available. Please enter ISBN manually.');
-        document.body.removeChild(scannerModal);
+        cleanup();
       }
     };
 
-    // Close button handler
-    document.getElementById('close-scanner')?.addEventListener('click', () => {
-      try {
-        if ((window as any).Quagga) {
-          (window as any).Quagga.stop();
-        }
-      } catch (e: any) {
-        console.log('Quagga cleanup error:', e);
-      }
-      document.body.removeChild(scannerModal);
-    });
-
+    // Initialize Quagga after DOM is ready
     initQuagga();
   };
 
@@ -2425,7 +2445,7 @@ const startBarcodeScanner = () => {
     selectionModal.className = 'fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50';
     
     const cameraOptions = cameras.map((camera: MediaDeviceInfo, index: number) => 
-      `<button class="camera-option block w-full p-3 mb-2 bg-blue-600 text-white rounded hover:bg-blue-700" data-device-id="${camera.deviceId}">
+      `<button class="camera-option block w-full p-3 mb-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors" data-device-id="${camera.deviceId}">
         ${camera.label || `Camera ${index + 1}`}
       </button>`
     ).join('');
@@ -2436,7 +2456,7 @@ const startBarcodeScanner = () => {
         <div class="space-y-2">
           ${cameraOptions}
         </div>
-        <button id="cancel-camera-selection" class="block w-full p-3 mt-4 bg-gray-500 text-white rounded hover:bg-gray-600">
+        <button id="cancel-camera-selection" class="block w-full p-3 mt-4 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors">
           Cancel
         </button>
       </div>
@@ -2444,14 +2464,14 @@ const startBarcodeScanner = () => {
     
     document.body.appendChild(selectionModal);
     
-    // Handle camera selection
+    // FIXED: Use event delegation for camera selection too
     selectionModal.addEventListener('click', (e: Event) => {
       const target = e.target as HTMLElement;
       if (target && target.classList.contains('camera-option')) {
         const deviceId = target.getAttribute('data-device-id');
         document.body.removeChild(selectionModal);
         initScanner(deviceId, false);
-      } else if (target && target.id === 'cancel-camera-selection') {
+      } else if (target && (target.id === 'cancel-camera-selection' || target === selectionModal)) {
         document.body.removeChild(selectionModal);
       }
     });
