@@ -29,6 +29,7 @@ import {
   CircleCheck,
   Activity,
   AlertTriangle,
+  Camera,
   Key
 } from 'lucide-react';
 import { createClient } from '@supabase/supabase-js';
@@ -2126,7 +2127,7 @@ console.log('DEBUG - Book:', book.title, {
     </Card>
   );
 }
-// Enhanced Add Book Modal Component with ISBN Auto-Lookup
+// Enhanced Add Book Modal Component with ISBN Auto-Lookup AND Barcode Scanner
 function AddBookModal({ 
   isOpen, 
   onClose, 
@@ -2136,6 +2137,8 @@ function AddBookModal({
   onClose: () => void; 
   onBookAdded: (book: Book) => void;
 }) {
+   const FormData = undefined;
+
   const [formData, setFormData] = useState({
     title: '',
     author: '',
@@ -2289,7 +2292,193 @@ function AddBookModal({
       fetchBookDataFromISBN(formData.isbn.trim());
     }
   };
+const startBarcodeScanner = () => {
+  // Check if getUserMedia is available
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    alert('Camera access is not available on this device. Please enter ISBN manually.');
+    return;
+  }
 
+  // Detect if we're on mobile
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+  // Initialize scanner with specific camera settings
+  const initScanner = (deviceId: string | null = null, useFacingMode: boolean = false) => {
+    // Create scanner modal
+    const scannerModal = document.createElement('div');
+    scannerModal.className = 'fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50';
+    scannerModal.innerHTML = `
+      <div class="relative w-full max-w-md mx-4">
+        <div class="bg-white p-4 rounded-t-lg">
+          <h3 class="text-lg font-semibold text-center text-gray-900">Scan Barcode</h3>
+          <p class="text-sm text-gray-600 text-center">Position barcode in the center</p>
+        </div>
+        <div id="scanner-container" class="relative bg-black h-96">
+          <video id="scanner-video" class="w-full h-full object-cover" autoplay playsinline muted></video>
+          <div class="absolute inset-0 border-2 border-red-500 m-8 rounded-lg pointer-events-none"></div>
+        </div>
+        <div class="bg-white p-4 rounded-b-lg text-center">
+          <button id="close-scanner" class="bg-gray-500 text-white px-4 py-2 rounded-lg hover:bg-gray-600">
+            Cancel
+          </button>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(scannerModal);
+
+    // Initialize Quagga with specific camera settings
+    const initQuagga = async () => {
+      try {
+        const Quagga = (await import('quagga')).default;
+        
+        let constraints: any;
+        
+        if (useFacingMode) {
+          // Mobile: Use facingMode for rear camera
+          constraints = {
+            width: 320,
+            height: 240,
+            facingMode: "environment"
+          };
+        } else if (deviceId) {
+          // Desktop: Use specific device ID
+          constraints = {
+            width: 320,
+            height: 240,
+            deviceId: { exact: deviceId }
+          };
+        } else {
+          // Fallback: Use default with environment preference
+          constraints = {
+            width: 320,
+            height: 240,
+            facingMode: "environment"
+          };
+        }
+        
+        Quagga.init({
+          inputStream: {
+            name: "Live",
+            type: "LiveStream",
+            target: document.querySelector('#scanner-container'),
+            constraints: constraints
+          },
+          locator: {
+            patchSize: "medium",
+            halfSample: true
+          },
+          numOfWorkers: 2,
+          decoder: {
+            readers: ["ean_reader", "ean_8_reader", "code_128_reader", "code_39_reader"]
+          },
+          locate: true
+        }, (err: any) => {
+          if (err) {
+            console.error('Scanner initialization failed:', err);
+            alert('Camera access failed. Please ensure you have granted camera permissions and try again.');
+            document.body.removeChild(scannerModal);
+            return;
+          }
+          console.log('Scanner initialized successfully');
+          Quagga.start();
+        });
+
+        // Handle barcode detection
+        Quagga.onDetected((result: any) => {
+          const code = result.codeResult.code;
+          console.log('Barcode detected:', code);
+          
+          // Stop scanner
+          Quagga.stop();
+          document.body.removeChild(scannerModal);
+          
+          // Set ISBN and trigger lookup
+          setFormData(prev => ({ ...prev, isbn: code }));
+          fetchBookDataFromISBN(code);
+        });
+      } catch (error) {
+        console.error('Error initializing scanner:', error);
+        alert('Scanner not available. Please enter ISBN manually.');
+        document.body.removeChild(scannerModal);
+      }
+    };
+
+    // Close button handler
+    document.getElementById('close-scanner')?.addEventListener('click', () => {
+      try {
+        if ((window as any).Quagga) {
+          (window as any).Quagga.stop();
+        }
+      } catch (e: any) {
+        console.log('Quagga cleanup error:', e);
+      }
+      document.body.removeChild(scannerModal);
+    });
+
+    initQuagga();
+  };
+
+  // Show camera selection for desktop
+  const showCameraSelection = (cameras: MediaDeviceInfo[]) => {
+    const selectionModal = document.createElement('div');
+    selectionModal.className = 'fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50';
+    
+    const cameraOptions = cameras.map((camera: MediaDeviceInfo, index: number) => 
+      `<button class="camera-option block w-full p-3 mb-2 bg-blue-600 text-white rounded hover:bg-blue-700" data-device-id="${camera.deviceId}">
+        ${camera.label || `Camera ${index + 1}`}
+      </button>`
+    ).join('');
+    
+    selectionModal.innerHTML = `
+      <div class="bg-white p-6 rounded-lg max-w-md w-full mx-4">
+        <h3 class="text-lg font-semibold text-center text-gray-900 mb-4">Choose Camera</h3>
+        <div class="space-y-2">
+          ${cameraOptions}
+        </div>
+        <button id="cancel-camera-selection" class="block w-full p-3 mt-4 bg-gray-500 text-white rounded hover:bg-gray-600">
+          Cancel
+        </button>
+      </div>
+    `;
+    
+    document.body.appendChild(selectionModal);
+    
+    // Handle camera selection
+    selectionModal.addEventListener('click', (e: Event) => {
+      const target = e.target as HTMLElement;
+      if (target && target.classList.contains('camera-option')) {
+        const deviceId = target.getAttribute('data-device-id');
+        document.body.removeChild(selectionModal);
+        initScanner(deviceId, false);
+      } else if (target && target.id === 'cancel-camera-selection') {
+        document.body.removeChild(selectionModal);
+      }
+    });
+  };
+
+  // Main logic
+  if (isMobile) {
+    // On mobile, directly start with rear camera
+    initScanner(null, true);
+  } else {
+    // On desktop, show camera selection if multiple cameras
+    navigator.mediaDevices.enumerateDevices()
+      .then(devices => {
+        const cameras = devices.filter(device => device.kind === 'videoinput');
+        
+        if (cameras.length <= 1) {
+          initScanner(); // Use default camera
+        } else {
+          showCameraSelection(cameras); // Show selection for multiple cameras
+        }
+      })
+      .catch(err => {
+        console.error('Error getting cameras:', err);
+        initScanner(); // Fallback to default
+      });
+  }
+};
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -2381,7 +2570,7 @@ function AddBookModal({
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* ISBN Field with Lookup */}
+            {/* ISBN Field with Lookup AND Scanner */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 ISBN
@@ -2394,6 +2583,15 @@ function AddBookModal({
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                   placeholder="978-0-123456-78-9"
                 />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={startBarcodeScanner}
+                  className="whitespace-nowrap"
+                >
+                  <Camera className="w-4 h-4 mr-1" />
+                  Scan
+                </Button>
                 <Button
                   type="button"
                   variant="secondary"
@@ -2412,7 +2610,7 @@ function AddBookModal({
                 </Button>
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                Enter ISBN and we'll auto-fill book details from Google Books
+                Scan barcode or enter ISBN manually - we'll auto-fill book details from Google Books
               </p>
             </div>
 
@@ -2543,8 +2741,6 @@ function AddBookModal({
     </div>
   );
 }
-
-
 
 
 // NEW: Edit Book Modal Component
@@ -3268,6 +3464,8 @@ function Friends() {
     </Card>
   );
 }
+
+
 
 // Enhanced Lending Component
 function Lending() {
