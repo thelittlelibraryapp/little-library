@@ -1,7 +1,7 @@
 //Little Library Project Next Steps V7
 'use client';
 
-import React, { useState, useEffect, useContext, createContext } from 'react';
+import React, { useState, useEffect, useContext, createContext, useRef } from 'react';
 import { 
   Search, 
   Plus, 
@@ -2152,6 +2152,8 @@ function AddBookModal({
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [autoFilledFields, setAutoFilledFields] = useState<string[]>([]);
   const [error, setError] = useState('');
+  // Add this line with your other state variables in AddBookModal:
+const lookupTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const conditionOptions = [
     { value: 'excellent', label: 'Excellent' },
@@ -2269,22 +2271,12 @@ function AddBookModal({
     }
   };
 
-  // Handle ISBN input change with auto-lookup
-  const handleISBNChange = (value: string) => {
-    setFormData(prev => ({ ...prev, isbn: value }));
-    setAutoFilledFields([]); // Clear auto-fill indicators when ISBN changes
-    
-    // Auto-lookup when user enters valid ISBN length
-    const cleanISBN = value.replace(/[-\s]/g, '');
-    if (cleanISBN.length === 10 || cleanISBN.length === 13) {
-      // Debounce the lookup to avoid too many API calls
-      const timeoutId = setTimeout(() => {
-        fetchBookDataFromISBN(value);
-      }, 500);
-      
-      return () => clearTimeout(timeoutId);
-    }
-  };
+  // FIXED VERSION - No auto-lookup:
+const handleISBNChange = (value: string) => {
+  setFormData(prev => ({ ...prev, isbn: value }));
+  setAutoFilledFields([]); // Clear auto-fill indicators when ISBN changes
+  // REMOVED THE AUTO-LOOKUP - only manual lookup now
+};
 
   // Manual lookup button handler
   const handleManualLookup = () => {
@@ -2292,6 +2284,8 @@ function AddBookModal({
       fetchBookDataFromISBN(formData.isbn.trim());
     }
   };
+// Replace your existing startBarcodeScanner function with this improved version:
+
 const startBarcodeScanner = () => {
   // Check if getUserMedia is available
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -2324,6 +2318,9 @@ const startBarcodeScanner = () => {
     `;
 
     document.body.appendChild(scannerModal);
+
+    // Track if we've already detected a barcode to prevent multiple detections
+    let hasDetected = false;
 
     // FIXED: Create centralized cleanup function
     const cleanup = () => {
@@ -2415,8 +2412,12 @@ const startBarcodeScanner = () => {
           Quagga.start();
         });
 
-        // Handle barcode detection
+        // Handle barcode detection - FIXED to prevent multiple detections
         Quagga.onDetected((result: any) => {
+          // Prevent multiple detections
+          if (hasDetected) return;
+          hasDetected = true;
+          
           const code = result.codeResult.code;
           console.log('Barcode detected:', code);
           
@@ -2424,9 +2425,13 @@ const startBarcodeScanner = () => {
           cleanup();
           document.removeEventListener('keydown', handleEscape);
           
-          // Set ISBN and trigger lookup
+          // Set ISBN and trigger lookup ONCE
           setFormData(prev => ({ ...prev, isbn: code }));
-          fetchBookDataFromISBN(code);
+          
+          // Use a longer delay to ensure state is set
+          setTimeout(() => {
+            fetchBookDataFromISBN(code);
+          }, 500);
         });
       } catch (error) {
         console.error('Error initializing scanner:', error);
@@ -2499,6 +2504,28 @@ const startBarcodeScanner = () => {
       });
   }
 };
+
+// REPLACE your existing handleBarcodeDetected function with this:
+
+const handleBarcodeDetected = (isbn: string) => {
+  console.log('Barcode detected:', isbn); // Debug log
+  
+  // Set ISBN only once
+  setFormData(prev => ({ ...prev, isbn }));
+  
+  // Clear any existing timeout to prevent multiple calls
+  if (lookupTimeoutRef.current) {
+    clearTimeout(lookupTimeoutRef.current);
+  }
+  
+  // Set a single timeout for lookup
+  lookupTimeoutRef.current = setTimeout(() => {
+    console.log('Triggering lookup for ISBN:', isbn); // Debug log
+    fetchBookDataFromISBN(isbn);
+    lookupTimeoutRef.current = null;
+  }, 300);
+};
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
