@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, BookOpen, Edit, Trash2 } from 'lucide-react';
+import { Search, Plus, BookOpen, Edit, Trash2, Share2, ExternalLink, Copy } from 'lucide-react';
 import { useAuth } from '@/lib/useAuth';
 import { useMood } from '@/contexts/MoodContext';
 import { supabase } from '@/lib/supabase';
@@ -37,6 +37,7 @@ interface Book {
 }
 
 export default function LibraryPage() {
+  const { user } = useAuth();
   const { currentMood, getMoodClasses } = useMood();
   const [books, setBooks] = useState<Book[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -136,12 +137,39 @@ export default function LibraryPage() {
     }
   };
 
+  const shareMyFreeBooks = () => {
+    if (!user?.username) {
+      alert('Username not found. Please contact support.');
+      return;
+    }
+
+    const freeBooks = books.filter(book => book.is_free_to_good_home);
+    if (freeBooks.length === 0) {
+      alert('You don\'t have any books marked as "free to good home" yet. Mark some books as free to share them!');
+      return;
+    }
+
+    const shareUrl = `${window.location.origin}/public/${user.username}`;
+    const shareText = `Check out my free books! 📚 I'm giving away ${freeBooks.length} book${freeBooks.length !== 1 ? 's' : ''} to good homes.`;
+    
+    // Copy to clipboard
+    navigator.clipboard.writeText(`${shareText}\n\n${shareUrl}`);
+    
+    // Also open Facebook share dialog
+    const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(shareText)}`;
+    window.open(facebookUrl, '_blank', 'width=600,height=400');
+    
+    alert('Link copied to clipboard! Facebook share dialog opened.');
+  };
+
   const filteredBooks = books.filter(book => {
     const matchesSearch = book.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          book.author.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = filterStatus === 'all' || book.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
+
+  const freeToGoodHomeCount = books.filter(book => book.is_free_to_good_home).length;
 
   if (isLoading) {
     return (
@@ -168,14 +196,53 @@ export default function LibraryPage() {
               <h1 className={`text-2xl font-bold ${moodClasses.textStyle}`}>My Library</h1>
               <p className={`${moodClasses.textStyle} opacity-70`}>Manage your book collection ({books.length} books)</p>
             </div>
-            <button
-              onClick={() => setIsAddModalOpen(true)}
-              className={`${moodClasses.buttonStyle} text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 flex items-center space-x-2`}
-            >
-              <Plus className="w-4 h-4" />
-              <span>Add Book</span>
-            </button>
+            <div className="flex items-center space-x-3">
+              {freeToGoodHomeCount > 0 && (
+                <button
+                  onClick={shareMyFreeBooks}
+                  className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 flex items-center space-x-2"
+                >
+                  <Share2 className="w-4 h-4" />
+                  <span>Share My Free Books ({freeToGoodHomeCount})</span>
+                </button>
+              )}
+              <button
+                onClick={() => setIsAddModalOpen(true)}
+                className={`${moodClasses.buttonStyle} text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 flex items-center space-x-2`}
+              >
+                <Plus className="w-4 h-4" />
+                <span>Add Book</span>
+              </button>
+            </div>
           </div>
+
+          {/* Share Free Books Banner */}
+          {freeToGoodHomeCount > 0 && (
+            <div className={`p-6 rounded-2xl shadow-xl border-l-4 border-l-blue-500 ${moodClasses.cardStyle}`}>
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <h3 className={`text-lg font-semibold ${moodClasses.textStyle} mb-2`}>
+                    📚 You have {freeToGoodHomeCount} book{freeToGoodHomeCount !== 1 ? 's' : ''} marked as "Free to Good Home"
+                  </h3>
+                  <p className={`${moodClasses.textStyle} opacity-70 mb-3`}>
+                    Share your collection on Facebook and let friends claim books directly - no more managing comments!
+                  </p>
+                  <div className="text-xs text-blue-600 bg-blue-50 px-3 py-1 rounded-full inline-block">
+                    💡 Perfect for posting: "Cleaning out my bookshelf! Click to see what's available"
+                  </div>
+                </div>
+                <div className="ml-6">
+                  <button
+                    onClick={shareMyFreeBooks}
+                    className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 flex items-center space-x-2 whitespace-nowrap"
+                  >
+                    <Share2 className="w-4 h-4" />
+                    <span>Share on Facebook</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Error Message */}
           {error && (
