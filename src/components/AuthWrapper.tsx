@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { usePathname } from 'next/navigation';
 import { AuthProvider, useAuth } from '@/lib/useAuth';
 import { BookOpen } from 'lucide-react';
 
@@ -154,11 +155,22 @@ function AuthForm() {
   );
 }
 
-// Auth Guard Component - WITH BETTER STYLING
+// UPDATED: Auth Guard Component with public route support
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, isLoading } = useAuth();
+  const pathname = usePathname();
 
-  // BETTER LOADING SCREEN WITH PROPER BACKGROUND
+  // Define public routes that don't require authentication
+  const publicRoutes = [
+    '/public', // All /public/* routes
+    '/auth/login',
+    '/auth/signup'
+  ];
+
+  // Check if current path is public
+  const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route));
+
+  // LOADING SCREEN
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -170,6 +182,12 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
+  // ALLOW PUBLIC ROUTES WITHOUT AUTHENTICATION
+  if (isPublicRoute) {
+    return <>{children}</>;
+  }
+
+  // REQUIRE AUTHENTICATION FOR PRIVATE ROUTES
   if (!user) {
     return <AuthForm />;
   }

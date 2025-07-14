@@ -16,6 +16,19 @@ export default function Navigation() {
   const router = useRouter();
   const pathname = usePathname();
   const isAdmin = user?.email === 'm.dembling@gmail.com';
+  
+  // Check if we're on a public page
+  const isPublicPage = pathname.startsWith('/public');
+
+  // Don't show navigation on public pages
+  if (isPublicPage) {
+    return null;
+  }
+
+  // If no user and not on public page, don't render (user will see auth form)
+  if (!user) {
+    return null;
+  }
 
   const navItems = [
     { id: 'dashboard', label: 'Home', icon: Home, href: '/' },
