@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { BookOpen, Users, Calendar, CheckCircle, Clock } from 'lucide-react';
 import { useAuth } from '@/lib/useAuth';
+import { useMood } from '@/contexts/MoodContext';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -34,10 +35,13 @@ interface Book {
 
 export default function LendingPage() {
   const { user } = useAuth();
+  const { currentMood, getMoodClasses } = useMood();
   const [borrowedBooks, setBorrowedBooks] = useState<Book[]>([]);
   const [lentBooks, setLentBooks] = useState<Book[]>([]);
   const [isLoadingBorrowed, setIsLoadingBorrowed] = useState(true);
   const [isLoadingLent, setIsLoadingLent] = useState(true);
+
+  const moodClasses = getMoodClasses();
 
   useEffect(() => {
     if (user?.id) {
@@ -168,143 +172,148 @@ export default function LendingPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="space-y-8">
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-900">Lending & Borrowing</h1>
-        </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Books I'm Borrowing */}
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <BookOpen className="w-5 h-5 text-blue-600 mr-2" />
-              Books I'm Borrowing ({borrowedBooks.length})
-            </h2>
-            
-            {isLoadingBorrowed ? (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="text-gray-600 mt-2">Loading borrowed books...</p>
-              </div>
-            ) : borrowedBooks.length === 0 ? (
-              <Card className="p-8 text-center">
-                <BookOpen className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No borrowed books</h3>
-                <p className="text-gray-600">Books you're borrowing from friends will appear here.</p>
-              </Card>
-            ) : (
-              <div className="space-y-4">
-                {borrowedBooks.map((book) => (
-                  <Card key={book.id} className="p-4">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <h3 className="font-medium text-gray-900 mb-1">{book.title}</h3>
-                        <p className="text-sm text-gray-600 mb-2">by {book.author}</p>
-                        <p className="text-sm text-gray-500 mb-2">
-                          Borrowed from {(book as any).ownerName}
-                        </p>
-                        
-                        {book.dueDate && (
-                          <div className="flex items-center text-sm text-gray-500 mb-3">
-                            <Calendar className="w-4 h-4 mr-1" />
-                            Due: {new Date(book.dueDate).toLocaleDateString()}
-                          </div>
-                        )}
-                        
-                        <div className="text-xs text-gray-400">
-                          Borrowed {new Date(book.addedAt).toLocaleDateString()}
-                        </div>
-                      </div>
-                      
-                      <div className="ml-4">
-                        <Button 
-                          size="sm" 
-                          variant="primary"
-                          onClick={() => handleMarkAsReturned(book.id)}
-                        >
-                          <CheckCircle className="w-4 h-4 mr-1" />
-                          Mark as Returned
-                        </Button>
-                      </div>
-                    </div>
-                  </Card>
-                ))}
-              </div>
-            )}
+    <div className={`min-h-screen ${moodClasses.background} transition-all duration-1000 ease-in-out`}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="space-y-8">
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className={`text-2xl font-bold ${moodClasses.textStyle}`}>Lending & Borrowing</h1>
+              <p className={`${moodClasses.textStyle} opacity-70`}>Track your book exchanges with friends</p>
+            </div>
           </div>
 
-          {/* Books I've Lent Out */}
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-              <Users className="w-5 h-5 text-purple-600 mr-2" />
-              Books I've Lent Out ({lentBooks.length})
-            </h2>
-            
-            {isLoadingLent ? (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto"></div>
-                <p className="text-gray-600 mt-2">Loading lent books...</p>
-              </div>
-            ) : lentBooks.length === 0 ? (
-              <Card className="p-8 text-center">
-                <Users className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No books lent out</h3>
-                <p className="text-gray-600">Books you've lent to friends will appear here.</p>
-              </Card>
-            ) : (
-              <div className="space-y-4">
-                {lentBooks.map((book) => (
-                  <Card key={book.id} className={`p-4 ${
-                    book.status === 'return_pending' ? 'border-l-4 border-l-blue-500 bg-blue-50' : ''
-                  }`}>
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <h3 className="font-medium text-gray-900 mb-1">{book.title}</h3>
-                        <p className="text-sm text-gray-600 mb-2">by {book.author}</p>
-                        <p className="text-sm text-gray-500 mb-2">
-                          Lent to {book.borrowerName}
-                        </p>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Books I'm Borrowing */}
+            <div>
+              <h2 className={`text-lg font-semibold ${moodClasses.textStyle} mb-4 flex items-center`}>
+                <BookOpen className={`w-5 h-5 text-${moodClasses.accentColor}-600 mr-2`} />
+                Books I'm Borrowing ({borrowedBooks.length})
+              </h2>
+              
+              {isLoadingBorrowed ? (
+                <div className="text-center py-8">
+                  <div className={`animate-spin rounded-full h-8 w-8 border-b-2 border-${moodClasses.accentColor}-600 mx-auto`}></div>
+                  <p className={`${moodClasses.textStyle} opacity-70 mt-2`}>Loading borrowed books...</p>
+                </div>
+              ) : borrowedBooks.length === 0 ? (
+                <div className={`p-8 text-center rounded-2xl shadow-xl ${moodClasses.cardStyle}`}>
+                  <BookOpen className={`w-16 h-16 text-${moodClasses.accentColor}-300 mx-auto mb-4 opacity-60`} />
+                  <h3 className={`text-lg font-medium ${moodClasses.textStyle} mb-2`}>No borrowed books</h3>
+                  <p className={`${moodClasses.textStyle} opacity-70`}>Books you're borrowing from friends will appear here.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {borrowedBooks.map((book) => (
+                    <div key={book.id} className={`p-4 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 ${moodClasses.cardStyle}`}>
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <h3 className={`font-medium ${moodClasses.textStyle} mb-1`}>{book.title}</h3>
+                          <p className={`text-sm ${moodClasses.textStyle} opacity-60 mb-2`}>by {book.author}</p>
+                          <p className={`text-sm ${moodClasses.textStyle} opacity-70 mb-2`}>
+                            Borrowed from {(book as any).ownerName}
+                          </p>
+                          
+                          {book.dueDate && (
+                            <div className={`flex items-center text-sm ${moodClasses.textStyle} opacity-60 mb-3`}>
+                              <Calendar className="w-4 h-4 mr-1" />
+                              Due: {new Date(book.dueDate).toLocaleDateString()}
+                            </div>
+                          )}
+                          
+                          <div className={`text-xs ${moodClasses.textStyle} opacity-40`}>
+                            Borrowed {new Date(book.addedAt).toLocaleDateString()}
+                          </div>
+                        </div>
                         
-                        {book.dueDate && (
-                          <div className="flex items-center text-sm text-gray-500 mb-2">
-                            <Calendar className="w-4 h-4 mr-1" />
-                            Due: {new Date(book.dueDate).toLocaleDateString()}
-                          </div>
-                        )}
-
-                        {book.status === 'return_pending' && (
-                          <div className="flex items-center text-sm text-blue-600 mb-2">
-                            <Clock className="w-4 h-4 mr-1" />
-                            Return pending - please confirm if received
-                          </div>
-                        )}
-
-                        <Badge variant={
-                          book.status === 'return_pending' ? 'info' : 
-                          book.status === 'borrowed' ? 'warning' : 'default'
-                        }>
-                          {book.status === 'return_pending' ? 'Return Pending' : 'Borrowed'}
-                        </Badge>
-                      </div>
-                      
-                      <div className="ml-4">
-                        {book.status === 'return_pending' && (
-                          <Button 
-                            size="sm" 
-                            variant="success"
-                            onClick={() => handleConfirmReturn(book.id, book.borrowerName || 'Unknown', book.title)}
+                        <div className="ml-4">
+                          <button
+                            onClick={() => handleMarkAsReturned(book.id)}
+                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 flex items-center space-x-1"
                           >
-                            <CheckCircle className="w-4 h-4 mr-1" />
-                            Confirm Return
-                          </Button>
-                        )}
+                            <CheckCircle className="w-4 h-4" />
+                            <span>Mark as Returned</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </Card>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Books I've Lent Out */}
+            <div>
+              <h2 className={`text-lg font-semibold ${moodClasses.textStyle} mb-4 flex items-center`}>
+                <Users className="w-5 h-5 text-purple-600 mr-2" />
+                Books I've Lent Out ({lentBooks.length})
+              </h2>
+              
+              {isLoadingLent ? (
+                <div className="text-center py-8">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto"></div>
+                  <p className={`${moodClasses.textStyle} opacity-70 mt-2`}>Loading lent books...</p>
+                </div>
+              ) : lentBooks.length === 0 ? (
+                <div className={`p-8 text-center rounded-2xl shadow-xl ${moodClasses.cardStyle}`}>
+                  <Users className="w-16 h-16 text-purple-300 mx-auto mb-4 opacity-60" />
+                  <h3 className={`text-lg font-medium ${moodClasses.textStyle} mb-2`}>No books lent out</h3>
+                  <p className={`${moodClasses.textStyle} opacity-70`}>Books you've lent to friends will appear here.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {lentBooks.map((book) => (
+                    <div key={book.id} className={`p-4 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 ${moodClasses.cardStyle} ${
+                      book.status === 'return_pending' ? `border-l-4 border-l-${moodClasses.accentColor}-500` : ''
+                    }`}>
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <h3 className={`font-medium ${moodClasses.textStyle} mb-1`}>{book.title}</h3>
+                          <p className={`text-sm ${moodClasses.textStyle} opacity-60 mb-2`}>by {book.author}</p>
+                          <p className={`text-sm ${moodClasses.textStyle} opacity-70 mb-2`}>
+                            Lent to {book.borrowerName}
+                          </p>
+                          
+                          {book.dueDate && (
+                            <div className={`flex items-center text-sm ${moodClasses.textStyle} opacity-60 mb-2`}>
+                              <Calendar className="w-4 h-4 mr-1" />
+                              Due: {new Date(book.dueDate).toLocaleDateString()}
+                            </div>
+                          )}
+
+                          {book.status === 'return_pending' && (
+                            <div className={`flex items-center text-sm text-${moodClasses.accentColor}-600 mb-2`}>
+                              <Clock className="w-4 h-4 mr-1" />
+                              Return pending - please confirm if received
+                            </div>
+                          )}
+
+                          <div className="flex items-center space-x-2 mb-2">
+                            <span className={`text-sm px-2 py-1 rounded-full ${
+                              book.status === 'return_pending' ? `bg-${moodClasses.accentColor}-100 text-${moodClasses.accentColor}-700` : 
+                              book.status === 'borrowed' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-700'
+                            }`}>
+                              {book.status === 'return_pending' ? 'Return Pending' : 'Borrowed'}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <div className="ml-4">
+                          {book.status === 'return_pending' && (
+                            <button
+                              onClick={() => handleConfirmReturn(book.id, book.borrowerName || 'Unknown', book.title)}
+                              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 flex items-center space-x-1"
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                              <span>Confirm Return</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
