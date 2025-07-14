@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Plus, BookOpen, Edit, Trash2 } from 'lucide-react';
 import { useAuth } from '@/lib/useAuth';
+import { useMood } from '@/contexts/MoodContext';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -36,6 +37,7 @@ interface Book {
 }
 
 export default function LibraryPage() {
+  const { currentMood, getMoodClasses } = useMood();
   const [books, setBooks] = useState<Book[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -44,6 +46,8 @@ export default function LibraryPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [error, setError] = useState('');
+
+  const moodClasses = getMoodClasses();
 
   // Fetch books on component mount
   useEffect(() => {
@@ -141,11 +145,13 @@ export default function LibraryPage() {
 
   if (isLoading) {
     return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-center justify-center p-8">
-          <div className="text-center">
-            <BookOpen className="w-12 h-12 text-blue-600 mx-auto mb-4 animate-pulse" />
-            <p className="text-gray-600">Loading your books...</p>
+      <div className={`min-h-screen ${moodClasses.background} transition-all duration-1000 ease-in-out`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex items-center justify-center p-8">
+            <div className="text-center">
+              <BookOpen className={`w-12 h-12 text-${moodClasses.accentColor}-600 mx-auto mb-4 animate-pulse`} />
+              <p className={`${moodClasses.textStyle} opacity-70`}>Loading your books...</p>
+            </div>
           </div>
         </div>
       </div>
@@ -153,114 +159,120 @@ export default function LibraryPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">My Library</h1>
-            <p className="text-gray-600">Manage your book collection ({books.length} books)</p>
-          </div>
-          <Button onClick={() => setIsAddModalOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Add Book
-          </Button>
-        </div>
-
-        {/* Error Message */}
-        {error && (
-          <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-            <p className="text-sm text-red-600">{error}</p>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={() => setError('')}
-              className="mt-2"
-            >
-              Dismiss
-            </Button>
-          </div>
-        )}
-
-        {/* Search and Filters */}
-        <Card className="p-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search books..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-400"
-                />
-              </div>
+    <div className={`min-h-screen ${moodClasses.background} transition-all duration-1000 ease-in-out`}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="space-y-6">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h1 className={`text-2xl font-bold ${moodClasses.textStyle}`}>My Library</h1>
+              <p className={`${moodClasses.textStyle} opacity-70`}>Manage your book collection ({books.length} books)</p>
             </div>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+            <button
+              onClick={() => setIsAddModalOpen(true)}
+              className={`${moodClasses.buttonStyle} text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 flex items-center space-x-2`}
             >
-              <option value="all">All Books</option>
-              <option value="available">Available</option>
-              <option value="checked_out">Borrowed</option>
-              <option value="overdue">Overdue</option>
-            </select>
+              <Plus className="w-4 h-4" />
+              <span>Add Book</span>
+            </button>
           </div>
-        </Card>
 
-        {/* Books Grid */}
-        {filteredBooks.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredBooks.map(book => (
-              <div key={book.id} data-book-id={book.id}>
-                <BookCard 
-                  book={book} 
-                  onEdit={handleEditBook}
-                  onDelete={handleDeleteBook}
-                />
+          {/* Error Message */}
+          {error && (
+            <div className="p-4 bg-red-50/90 backdrop-blur-sm border border-red-200 rounded-xl">
+              <p className="text-sm text-red-600">{error}</p>
+              <button 
+                onClick={() => setError('')}
+                className="mt-2 text-xs text-red-500 hover:text-red-700 underline"
+              >
+                Dismiss
+              </button>
+            </div>
+          )}
+
+          {/* Search and Filters */}
+          <div className={`p-6 rounded-2xl shadow-xl ${moodClasses.cardStyle}`}>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className={`w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-${moodClasses.accentColor}-400`} />
+                  <input
+                    type="text"
+                    placeholder="Search books..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className={`w-full pl-10 pr-4 py-3 border-2 border-${moodClasses.accentColor}-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-${moodClasses.accentColor}-500 ${moodClasses.textStyle} placeholder-gray-400 bg-white/80 backdrop-blur-sm transition-all duration-200`}
+                  />
+                </div>
               </div>
-            ))}
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className={`px-4 py-3 border-2 border-${moodClasses.accentColor}-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-${moodClasses.accentColor}-500 ${moodClasses.textStyle} bg-white/80 backdrop-blur-sm transition-all duration-200`}
+              >
+                <option value="all">All Books</option>
+                <option value="available">Available</option>
+                <option value="checked_out">Borrowed</option>
+                <option value="overdue">Overdue</option>
+              </select>
+            </div>
           </div>
-        ) : (
-          <Card className="p-8 text-center">
-            <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              {searchTerm || filterStatus !== 'all' ? 'No books found' : 'No books yet'}
-            </h3>
-            <p className="text-gray-600 mb-4">
-              {searchTerm || filterStatus !== 'all' 
-                ? "Try adjusting your search or filters" 
-                : "Start building your library by adding your first book"
-              }
-            </p>
-            {!searchTerm && filterStatus === 'all' && (
-              <Button onClick={() => setIsAddModalOpen(true)}>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Your First Book
-              </Button>
-            )}
-          </Card>
-        )}
 
-        {/* Add Book Modal */}
-        <AddBookModal
-          isOpen={isAddModalOpen}
-          onClose={() => setIsAddModalOpen(false)}
-          onBookAdded={handleBookAdded}
-        />
+          {/* Books Grid */}
+          {filteredBooks.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredBooks.map(book => (
+                <div key={book.id} data-book-id={book.id} className="transition-all duration-300 hover:scale-105">
+                  <BookCard 
+                    book={book} 
+                    onEdit={handleEditBook}
+                    onDelete={handleDeleteBook}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className={`p-8 text-center rounded-2xl shadow-xl ${moodClasses.cardStyle}`}>
+              <BookOpen className={`w-16 h-16 text-${moodClasses.accentColor}-400 mx-auto mb-4 opacity-60`} />
+              <h3 className={`text-lg font-semibold ${moodClasses.textStyle} mb-2`}>
+                {searchTerm || filterStatus !== 'all' ? 'No books found' : 'No books yet'}
+              </h3>
+              <p className={`${moodClasses.textStyle} opacity-70 mb-4`}>
+                {searchTerm || filterStatus !== 'all' 
+                  ? "Try adjusting your search or filters" 
+                  : "Start building your library by adding your first book"
+                }
+              </p>
+              {!searchTerm && filterStatus === 'all' && (
+                <button
+                  onClick={() => setIsAddModalOpen(true)}
+                  className={`${moodClasses.buttonStyle} text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 flex items-center space-x-2 mx-auto`}
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Your First Book</span>
+                </button>
+              )}
+            </div>
+          )}
 
-        {/* Edit Book Modal */}
-        <EditBookModal
-          isOpen={isEditModalOpen}
-          onClose={() => {
-            setIsEditModalOpen(false);
-            setEditingBook(null);
-          }}
-          book={editingBook}
-          onBookUpdated={handleBookUpdated}
-        />
+          {/* Add Book Modal */}
+          <AddBookModal
+            isOpen={isAddModalOpen}
+            onClose={() => setIsAddModalOpen(false)}
+            onBookAdded={handleBookAdded}
+          />
+
+          {/* Edit Book Modal */}
+          <EditBookModal
+            isOpen={isEditModalOpen}
+            onClose={() => {
+              setIsEditModalOpen(false);
+              setEditingBook(null);
+            }}
+            book={editingBook}
+            onBookUpdated={handleBookUpdated}
+          />
+        </div>
       </div>
     </div>
   );
