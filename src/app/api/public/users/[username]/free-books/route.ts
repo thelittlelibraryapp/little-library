@@ -8,14 +8,15 @@ export async function GET(
   try {
     const { username } = await params;
 
-    // First, get the user by username
+    // Get the user by username from the custom users table
     const { data: userData, error: userError } = await supabase
-      .from('auth.users')
-      .select('id, raw_user_meta_data')
-      .eq('raw_user_meta_data->>username', username)
+      .from('users')
+      .select('id, first_name, username')
+      .eq('username', username)
       .single();
 
     if (userError || !userData) {
+      console.log('User lookup error:', userError);
       return NextResponse.json(
         { error: 'User not found' },
         { status: 404 }
@@ -23,21 +24,41 @@ export async function GET(
     }
 
     const userId = userData.id;
-    const userMetadata = userData.raw_user_meta_data as any;
 
-    // Get user's books that are marked as "free to good home"
+    // FIXED: Get user's library first, then get books from that library
+    const { data: library, error: libraryError } = await supabase
+      .from('libraries')
+      .select('id')
+      .eq('owner_id', userId)
+      .single();
+
+    if (libraryError || !library) {
+      console.log('Library lookup error:', libraryError);
+      return NextResponse.json(
+        { error: 'User library not found' },
+        { status: 404 }
+      );
+    }
+
+    // Get books that are marked as "free to good home" from the user's library
     const { data: books, error: booksError } = await supabase
       .from('books')
       .select('*')
-      .eq('user_id', userId)
+      .eq('library_id', library.id)
       .eq('is_free_to_good_home', true)
-      .eq('status', 'available') // Only show available books
-      .order('created_at', { ascending: false });
+      .order('added_at', { ascending: false });
 
     if (booksError) {
       console.error('Error fetching books:', booksError);
       return NextResponse.json(
-        { error: 'Failed to fetch books' },
+        { 
+          error: 'Failed to fetch books',
+          debug: {
+            userId,
+            libraryId: library.id,
+            booksError: booksError.message
+          }
+        },
         { status: 500 }
       );
     }
@@ -53,14 +74,14 @@ export async function GET(
       condition: book.condition,
       notes: book.notes,
       delivery_method: book.delivery_method,
-      addedAt: book.created_at,
+      addedAt: book.added_at,
     }));
 
     // Return user info and books
     return NextResponse.json({
       user: {
         id: userId,
-        firstName: userMetadata?.first_name || userMetadata?.firstName || 'Book Lover',
+        firstName: userData.first_name,
         username: username,
       },
       books: transformedBooks,
