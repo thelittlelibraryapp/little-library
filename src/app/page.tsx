@@ -10,6 +10,7 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { AddBookModal } from '@/components/AddBookModal';
 import { AlphaWarningCard } from '@/components/AlphaWarningCard';
+import { PatchNotesCard } from '@/components/PatchNotesCard';
 
 
 interface Book {
@@ -159,6 +160,9 @@ export default function DashboardPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="space-y-8">
           <AlphaWarningCard />
+
+          {/* Patch Notes Card */}
+          <PatchNotesCard />
 
           {/* Hero Welcome Section */}
           <div className="relative overflow-hidden">
