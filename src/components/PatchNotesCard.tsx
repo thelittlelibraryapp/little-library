@@ -23,33 +23,6 @@ export const PatchNotesCard = () => {
 
   const moodClasses = getMoodClasses();
 
-  // Mock release data for testing while we debug the API
-  const mockRelease: GitHubRelease = {
-    tag_name: "v3.1.0",
-    name: "v3.1.0 - Patch Notes Integration & Complete Mood Theme Enhancement ✨",
-    body: `# 🎉 Version 3.1.0 - Dynamic Updates & Enhanced Experience
-
-## ✨ Major New Features
-
-### 🔔 Dynamic Patch Notes System
-- **Real-time release notifications** directly on the dashboard
-- **Smart dismissal system** that remembers user preferences
-- **Expandable release notes** with formatted markdown support
-
-### 🎨 Complete Mood Theme Integration
-- **Universal theming** now applied across ALL pages
-- **7 stunning mood themes**: Cozy Library, Midnight Study, Morning Glow, Forest Retreat, Electric Dreams, Romance Novel, Mystical Realm
-- **Dynamic styling** for backgrounds, cards, buttons, and text
-
-## 🚀 Enhancements
-- **Enhanced welcome section** with mood-aware styling
-- **Improved stat cards** with gradient text and hover animations
-- **Seamless theme switching** with persistent preferences`,
-    published_at: new Date().toISOString(),
-    html_url: "https://github.com/thelittlelibraryapp/little-library/releases/latest",
-    prerelease: false
-  };
-
   useEffect(() => {
     checkIfDismissed();
     fetchLatestRelease();
@@ -69,38 +42,34 @@ export const PatchNotesCard = () => {
       setIsLoading(true);
       setError(null);
       
-      // Try to fetch from GitHub API
-      const response = await fetch('https://api.github.com/repos/thelittlelibraryapp/little-library/releases/latest');
+      // Fetch ALL releases (including pre-releases) and get the most recent one
+      const response = await fetch('https://api.github.com/repos/thelittlelibraryapp/little-library/releases');
       
       if (response.ok) {
-        const release: GitHubRelease = await response.json();
-        setLatestRelease(release);
+        const releases: GitHubRelease[] = await response.json();
         
-        // Check if this version was already dismissed
-        const dismissedVersion = localStorage.getItem('patchNotesDismissedVersion');
-        if (dismissedVersion !== release.tag_name) {
-          setIsDismissed(false);
-          localStorage.removeItem('patchNotesDismissed');
-        }
-      } else if (response.status === 404) {
-        // 404 means no releases found, use mock data for now
-        console.log('📝 No GitHub releases found, using mock data');
-        setLatestRelease(mockRelease);
-        
-        // Check if mock version was dismissed
-        const dismissedVersion = localStorage.getItem('patchNotesDismissedVersion');
-        if (dismissedVersion !== mockRelease.tag_name) {
-          setIsDismissed(false);
-          localStorage.removeItem('patchNotesDismissed');
+        if (releases && releases.length > 0) {
+          // Get the most recent release (first in the array, as they're sorted by date)
+          const latestRelease = releases[0];
+          setLatestRelease(latestRelease);
+          
+          // Check if this version was already dismissed
+          const dismissedVersion = localStorage.getItem('patchNotesDismissedVersion');
+          if (dismissedVersion !== latestRelease.tag_name) {
+            setIsDismissed(false);
+            localStorage.removeItem('patchNotesDismissed');
+          }
+        } else {
+          console.log('📝 No GitHub releases found');
+          setLatestRelease(null);
         }
       } else {
         throw new Error(`GitHub API returned ${response.status}`);
       }
     } catch (error) {
-      console.error('Failed to fetch latest release:', error);
-      // Fallback to mock data on any error
-      setLatestRelease(mockRelease);
-      setIsDismissed(false);
+      console.error('Failed to fetch releases:', error);
+      setError('Failed to load release notes');
+      setLatestRelease(null);
     } finally {
       setIsLoading(false);
     }
@@ -222,11 +191,11 @@ export const PatchNotesCard = () => {
         </a>
       </div>
 
-      {/* Beta/prerelease indicator */}
+      {/* Alpha/prerelease indicator */}
       {latestRelease.prerelease && (
         <div className="absolute top-3 left-3">
-          <span className="px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
-            Beta
+          <span className="px-2 py-1 text-xs font-medium bg-orange-100 text-orange-800 rounded-full">
+            Alpha
           </span>
         </div>
       )}
