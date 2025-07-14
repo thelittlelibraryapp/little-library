@@ -151,180 +151,182 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      <div className="space-y-8">
-        <AlphaWarningCard />
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="space-y-8">
+          <AlphaWarningCard />
 
-        {/* Hero Welcome Section */}
-        <div className="relative overflow-hidden">
-          <Card variant="cozy" className="p-8 border-0 shadow-2xl">
-            <div className="relative z-10">
-              <div className="flex items-center space-x-3 mb-4">
-                <div className="relative">
-                  <Coffee className="w-8 h-8 text-amber-600" />
-                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-400 rounded-full animate-pulse"></div>
+          {/* Hero Welcome Section */}
+          <div className="relative overflow-hidden">
+            <Card variant="cozy" className="p-8 border-0 shadow-2xl">
+              <div className="relative z-10">
+                <div className="flex items-center space-x-3 mb-4">
+                  <div className="relative">
+                    <Coffee className="w-8 h-8 text-amber-600" />
+                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-400 rounded-full animate-pulse"></div>
+                  </div>
+                  <div>
+                    <h1 className="text-3xl font-bold bg-gradient-to-r from-amber-800 to-orange-700 bg-clip-text text-transparent">
+                      {getGreeting()}, {user?.firstName}!
+                    </h1>
+                    <p className="text-amber-700/80 text-lg">
+                      Welcome to your personal reading sanctuary
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h1 className="text-3xl font-bold bg-gradient-to-r from-amber-800 to-orange-700 bg-clip-text text-transparent">
-                    {getGreeting()}, {user?.firstName}!
-                  </h1>
-                  <p className="text-amber-700/80 text-lg">
-                    Welcome to your personal reading sanctuary
-                  </p>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                  <div className="space-y-2">
+                    <p className="text-amber-800 font-medium">Your Library at a Glance</p>
+                    <p className="text-amber-700/70">
+                      You have <span className="font-semibold text-amber-800">{stats.totalBooks}</span> books in your collection
+                    </p>
+                    <p className="text-amber-700/70">
+                      <span className="font-semibold text-emerald-700">{stats.available}</span> ready to lend
+                    </p>
+                  </div>
+                  <div className="flex justify-end">
+                    <Button 
+                      onClick={() => setIsAddModalOpen(true)}
+                      variant="cozy"
+                      size="lg"
+                      className="shadow-lg hover:shadow-xl"
+                    >
+                      <Plus className="w-5 h-5 mr-2" />
+                      Add New Book
+                    </Button>
+                  </div>
                 </div>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                <div className="space-y-2">
-                  <p className="text-amber-800 font-medium">Your Library at a Glance</p>
-                  <p className="text-amber-700/70">
-                    You have <span className="font-semibold text-amber-800">{stats.totalBooks}</span> books in your collection
-                  </p>
-                  <p className="text-amber-700/70">
-                    <span className="font-semibold text-emerald-700">{stats.available}</span> ready to lend
-                  </p>
-                </div>
-                <div className="flex justify-end">
-                  <Button 
-                    onClick={() => setIsAddModalOpen(true)}
-                    variant="cozy"
-                    size="lg"
-                    className="shadow-lg hover:shadow-xl"
-                  >
-                    <Plus className="w-5 h-5 mr-2" />
-                    Add New Book
-                  </Button>
+              {/* Decorative book spines */}
+              <div className="absolute top-0 right-0 opacity-10">
+                <div className="flex space-x-1">
+                  {[1,2,3,4,5].map(i => (
+                    <div key={i} className={`w-4 h-24 bg-gradient-to-b ${
+                      ['from-red-400 to-red-600', 'from-blue-400 to-blue-600', 'from-green-400 to-green-600', 'from-purple-400 to-purple-600', 'from-orange-400 to-orange-600'][i-1]
+                    } rounded-sm`}></div>
+                  ))}
                 </div>
               </div>
-            </div>
-            
-            {/* Decorative book spines */}
-            <div className="absolute top-0 right-0 opacity-10">
-              <div className="flex space-x-1">
-                {[1,2,3,4,5].map(i => (
-                  <div key={i} className={`w-4 h-24 bg-gradient-to-b ${
-                    ['from-red-400 to-red-600', 'from-blue-400 to-blue-600', 'from-green-400 to-green-600', 'from-purple-400 to-purple-600', 'from-orange-400 to-orange-600'][i-1]
-                  } rounded-sm`}></div>
-                ))}
-              </div>
-            </div>
-          </Card>
-        </div>
+            </Card>
+          </div>
 
-        {/* Enhanced Stats Grid */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-          {/* TOTAL BOOKS CARD - This was missing */}
-          <Card variant="elevated" className="p-6 group hover:scale-105 transition-all duration-300">
-            <div className="text-center">
-              <div className="relative mx-auto w-12 h-12 mb-4">
-                <BookOpen className="w-12 h-12 text-amber-600 group-hover:text-amber-700 transition-colors" />
-                <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-amber-400 to-orange-500 rounded-full flex items-center justify-center">
-                  <Star className="w-2 h-2 text-white" />
-                </div>
-              </div>
-              <p className="text-3xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
-                {stats.totalBooks}
-              </p>
-              <p className="text-sm text-slate-600 font-medium">Total Books</p>
-              <p className="text-xs text-slate-500 mt-1">Your collection</p>
-            </div>
-          </Card>
-
-          <Card variant="elevated" className="p-6 group hover:scale-105 transition-all duration-300">
-            <div className="text-center">
-              <div className="relative mx-auto w-12 h-12 mb-4">
-                <CheckCircle className="w-12 h-12 text-emerald-600 group-hover:text-emerald-700 transition-colors" />
-                <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-emerald-400 to-teal-500 rounded-full flex items-center justify-center">
-                  <Heart className="w-2 h-2 text-white" />
-                </div>
-              </div>
-              <p className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
-                {stats.available}
-              </p>
-              <p className="text-sm text-slate-600 font-medium">Available</p>
-              <p className="text-xs text-slate-500 mt-1">Ready to share</p>
-            </div>
-          </Card>
-
-          <Card variant="elevated" className="p-6 group hover:scale-105 transition-all duration-300">
-            <div className="text-center">
-              <div className="relative mx-auto w-12 h-12 mb-4">
-                <Clock className="w-12 h-12 text-amber-600 group-hover:text-amber-700 transition-colors" />
-                <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-amber-400 to-yellow-500 rounded-full flex items-center justify-center">
-                  <TrendingUp className="w-2 h-2 text-white" />
-                </div>
-              </div>
-              <p className="text-3xl font-bold bg-gradient-to-r from-amber-600 to-yellow-600 bg-clip-text text-transparent">
-                {stats.borrowed}
-              </p>
-              <p className="text-sm text-slate-600 font-medium">Borrowed</p>
-              <p className="text-xs text-slate-500 mt-1">Currently out</p>
-            </div>
-          </Card>
-
-          <Card variant="elevated" className="p-6 group hover:scale-105 transition-all duration-300">
-            <div className="text-center">
-              <div className="relative mx-auto w-12 h-12 mb-4">
-                <Users className="w-12 h-12 text-purple-600 group-hover:text-purple-700 transition-colors" />
-                <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-purple-400 to-pink-500 rounded-full flex items-center justify-center">
-                  <Heart className="w-2 h-2 text-white" />
-                </div>
-              </div>
-              <p className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                {stats.lending}
-              </p>
-              <p className="text-sm text-slate-600 font-medium">Lending</p>
-              <p className="text-xs text-slate-500 mt-1">Sharing joy</p>
-            </div>
-          </Card>
-        </div>
-
-        {/* Quick Actions & Recent Activity */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <Card variant="warm" className="p-8">
-            <div className="flex items-center space-x-3 mb-6">
-              <div className="w-10 h-10 bg-gradient-to-r from-amber-500 to-orange-600 rounded-xl flex items-center justify-center">
-                <Star className="w-5 h-5 text-white" />
-              </div>
-              <h2 className="text-xl font-semibold text-stone-800">Quick Actions</h2>
-            </div>
-            <div className="space-y-4">
-              <Button 
-                className="w-full justify-start text-left group"
-                variant="warm"
-                onClick={() => setIsAddModalOpen(true)}
-              >
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-gradient-to-r from-amber-600 to-orange-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Plus className="w-4 h-4 text-white" />
-                  </div>
-                  <div>
-                    <p className="font-medium">Add New Book</p>
-                    <p className="text-xs text-stone-600">Expand your collection</p>
+          {/* Enhanced Stats Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+            {/* TOTAL BOOKS CARD - This was missing */}
+            <Card variant="elevated" className="p-6 group hover:scale-105 transition-all duration-300">
+              <div className="text-center">
+                <div className="relative mx-auto w-12 h-12 mb-4">
+                  <BookOpen className="w-12 h-12 text-amber-600 group-hover:text-amber-700 transition-colors" />
+                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-amber-400 to-orange-500 rounded-full flex items-center justify-center">
+                    <Star className="w-2 h-2 text-white" />
                   </div>
                 </div>
-              </Button>
-              
-              <Button variant="warm" className="w-full justify-start text-left group">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Users className="w-4 h-4 text-white" />
-                  </div>
-                  <div>
-                    <p className="font-medium">Invite Friends</p>
-                    <p className="text-xs text-stone-600">Share the reading love</p>
+                <p className="text-3xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">
+                  {stats.totalBooks}
+                </p>
+                <p className="text-sm text-slate-600 font-medium">Total Books</p>
+                <p className="text-xs text-slate-500 mt-1">Your collection</p>
+              </div>
+            </Card>
+
+            <Card variant="elevated" className="p-6 group hover:scale-105 transition-all duration-300">
+              <div className="text-center">
+                <div className="relative mx-auto w-12 h-12 mb-4">
+                  <CheckCircle className="w-12 h-12 text-emerald-600 group-hover:text-emerald-700 transition-colors" />
+                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-emerald-400 to-teal-500 rounded-full flex items-center justify-center">
+                    <Heart className="w-2 h-2 text-white" />
                   </div>
                 </div>
-              </Button>
-              
-              <Button variant="warm" className="w-full justify-start text-left group">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <Search className="w-4 h-4 text-white" />
+                <p className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                  {stats.available}
+                </p>
+                <p className="text-sm text-slate-600 font-medium">Available</p>
+                <p className="text-xs text-slate-500 mt-1">Ready to share</p>
+              </div>
+            </Card>
+
+            <Card variant="elevated" className="p-6 group hover:scale-105 transition-all duration-300">
+              <div className="text-center">
+                <div className="relative mx-auto w-12 h-12 mb-4">
+                  <Clock className="w-12 h-12 text-amber-600 group-hover:text-amber-700 transition-colors" />
+                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-amber-400 to-yellow-500 rounded-full flex items-center justify-center">
+                    <TrendingUp className="w-2 h-2 text-white" />
                   </div>
-                  <div>
-                    <p className="font-medium">Browse Friends' Libraries</p>
-                    <p className="text-xs text-stone-600">Discover new reads</p>
+                </div>
+                <p className="text-3xl font-bold bg-gradient-to-r from-amber-600 to-yellow-600 bg-clip-text text-transparent">
+                  {stats.borrowed}
+                </p>
+                <p className="text-sm text-slate-600 font-medium">Borrowed</p>
+                <p className="text-xs text-slate-500 mt-1">Currently out</p>
+              </div>
+            </Card>
+
+            <Card variant="elevated" className="p-6 group hover:scale-105 transition-all duration-300">
+              <div className="text-center">
+                <div className="relative mx-auto w-12 h-12 mb-4">
+                  <Users className="w-12 h-12 text-purple-600 group-hover:text-purple-700 transition-colors" />
+                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-purple-400 to-pink-500 rounded-full flex items-center justify-center">
+                    <Heart className="w-2 h-2 text-white" />
+                  </div>
+                </div>
+                <p className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+                  {stats.lending}
+                </p>
+                <p className="text-sm text-slate-600 font-medium">Lending</p>
+                <p className="text-xs text-slate-500 mt-1">Sharing joy</p>
+              </div>
+            </Card>
+          </div>
+
+          {/* Quick Actions & Recent Activity */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <Card variant="warm" className="p-8">
+              <div className="flex items-center space-x-3 mb-6">
+                <div className="w-10 h-10 bg-gradient-to-r from-amber-500 to-orange-600 rounded-xl flex items-center justify-center">
+                  <Star className="w-5 h-5 text-white" />
+                </div>
+                <h2 className="text-xl font-semibold text-stone-800">Quick Actions</h2>
+              </div>
+              <div className="space-y-4">
+                <Button 
+                  className="w-full justify-start text-left group"
+                  variant="warm"
+                  onClick={() => setIsAddModalOpen(true)}
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-gradient-to-r from-amber-600 to-orange-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <Plus className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                      <p className="font-medium">Add New Book</p>
+                      <p className="text-xs text-stone-600">Expand your collection</p>
+                    </div>
+                  </div>
+                </Button>
+                
+                <Button variant="warm" className="w-full justify-start text-left group">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <Users className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                      <p className="font-medium">Invite Friends</p>
+                      <p className="text-xs text-stone-600">Share the reading love</p>
+                    </div>
+                  </div>
+                </Button>
+                
+                <Button variant="warm" className="w-full justify-start text-left group">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-gradient-to-r from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
+                      <Search className="w-4 h-4 text-white" />
+                    </div>
+                    <div>
+                      <p className="font-medium">Browse Friends' Libraries</p>
+                      <p className="text-xs text-stone-600">Discover new reads</p>
+                    </div>
                   </div>
                 </div>
               </Button>
