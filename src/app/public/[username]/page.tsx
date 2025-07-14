@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, use } from 'react';
 import { Heart, Share2, BookOpen, User, ArrowLeft, ExternalLink, Facebook } from 'lucide-react';
 import { useAuth } from '@/lib/useAuth';
 import { PublicBookCard } from '@/components/PublicBookCard';
@@ -26,13 +26,14 @@ interface UserInfo {
 }
 
 interface PublicFreeBooksPageProps {
-  params: {
+  params: Promise<{
     username: string;
-  };
+  }>;
 }
 
 export default function PublicFreeBooksPage({ params }: PublicFreeBooksPageProps) {
   const { user } = useAuth();
+  const resolvedParams = use(params);
   const [books, setBooks] = useState<Book[]>([]);
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -42,14 +43,14 @@ export default function PublicFreeBooksPage({ params }: PublicFreeBooksPageProps
 
   useEffect(() => {
     loadPublicBooks();
-  }, [params.username]);
+  }, [resolvedParams.username]);
 
   const loadPublicBooks = async () => {
     try {
       setIsLoading(true);
       setError(null);
 
-      const response = await fetch(`/api/public/users/${params.username}/free-books`);
+      const response = await fetch(`/api/public/users/${resolvedParams.username}/free-books`);
       const data = await response.json();
 
       if (response.ok) {
