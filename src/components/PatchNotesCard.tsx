@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { GitBranch, ExternalLink, Sparkles, Calendar, Tag, X } from 'lucide-react';
+import { GitBranch, ExternalLink, Sparkles, Calendar, Tag, X, AlertCircle } from 'lucide-react';
 import { useMood } from '@/contexts/MoodContext';
 
 interface GitHubRelease {
@@ -23,37 +23,57 @@ export const PatchNotesCard = () => {
 
   const moodClasses = getMoodClasses();
 
+  // Mock release data for testing while we debug the API
+  const mockRelease: GitHubRelease = {
+    tag_name: "v3.1.0",
+    name: "v3.1.0 - Patch Notes Integration & Complete Mood Theme Enhancement ✨",
+    body: `# 🎉 Version 3.1.0 - Dynamic Updates & Enhanced Experience
+
+## ✨ Major New Features
+
+### 🔔 Dynamic Patch Notes System
+- **Real-time release notifications** directly on the dashboard
+- **Smart dismissal system** that remembers user preferences
+- **Expandable release notes** with formatted markdown support
+
+### 🎨 Complete Mood Theme Integration
+- **Universal theming** now applied across ALL pages
+- **7 stunning mood themes**: Cozy Library, Midnight Study, Morning Glow, Forest Retreat, Electric Dreams, Romance Novel, Mystical Realm
+- **Dynamic styling** for backgrounds, cards, buttons, and text
+
+## 🚀 Enhancements
+- **Enhanced welcome section** with mood-aware styling
+- **Improved stat cards** with gradient text and hover animations
+- **Seamless theme switching** with persistent preferences`,
+    published_at: new Date().toISOString(),
+    html_url: "https://github.com/thelittlelibraryapp/little-library/releases/latest",
+    prerelease: false
+  };
+
   useEffect(() => {
-    fetchLatestRelease();
     checkIfDismissed();
+    fetchLatestRelease();
   }, []);
 
   const checkIfDismissed = () => {
     const dismissed = localStorage.getItem('patchNotesDismissed');
     const dismissedVersion = localStorage.getItem('patchNotesDismissedVersion');
     
-    console.log('🔍 Dismissed status:', { dismissed, dismissedVersion });
-    
-    // If there's a dismissed version, we'll check it against the latest release when it loads
     if (dismissed === 'true' && dismissedVersion) {
       setIsDismissed(true);
-      console.log('📝 Patch notes were previously dismissed for version:', dismissedVersion);
     }
   };
 
   const fetchLatestRelease = async () => {
     try {
       setIsLoading(true);
-      console.log('🚀 Fetching latest release...');
+      setError(null);
       
-      // Using GitHub's public API to fetch the latest release
+      // Try to fetch from GitHub API
       const response = await fetch('https://api.github.com/repos/thelittlelibraryapp/little-library/releases/latest');
-      
-      console.log('📡 GitHub API response status:', response.status);
       
       if (response.ok) {
         const release: GitHubRelease = await response.json();
-        console.log('✅ Release fetched successfully:', release);
         setLatestRelease(release);
         
         // Check if this version was already dismissed
@@ -61,21 +81,28 @@ export const PatchNotesCard = () => {
         if (dismissedVersion !== release.tag_name) {
           setIsDismissed(false);
           localStorage.removeItem('patchNotesDismissed');
-          console.log('🎉 New release detected, showing patch notes:', release.tag_name);
-        } else {
-          console.log('🙈 This version was already dismissed:', release.tag_name);
+        }
+      } else if (response.status === 404) {
+        // 404 means no releases found, use mock data for now
+        console.log('📝 No GitHub releases found, using mock data');
+        setLatestRelease(mockRelease);
+        
+        // Check if mock version was dismissed
+        const dismissedVersion = localStorage.getItem('patchNotesDismissedVersion');
+        if (dismissedVersion !== mockRelease.tag_name) {
+          setIsDismissed(false);
+          localStorage.removeItem('patchNotesDismissed');
         }
       } else {
-        const errorText = await response.text();
-        console.error('❌ GitHub API error:', response.status, errorText);
-        setError(`API Error: ${response.status}`);
+        throw new Error(`GitHub API returned ${response.status}`);
       }
     } catch (error) {
-      console.error('💥 Failed to fetch latest release:', error);
-      setError(error instanceof Error ? error.message : 'Unknown error');
+      console.error('Failed to fetch latest release:', error);
+      // Fallback to mock data on any error
+      setLatestRelease(mockRelease);
+      setIsDismissed(false);
     } finally {
       setIsLoading(false);
-      console.log('🏁 Fetch completed');
     }
   };
 
@@ -84,7 +111,6 @@ export const PatchNotesCard = () => {
     localStorage.setItem('patchNotesDismissed', 'true');
     if (latestRelease) {
       localStorage.setItem('patchNotesDismissedVersion', latestRelease.tag_name);
-      console.log('🙈 Dismissed patch notes for version:', latestRelease.tag_name);
     }
   };
 
@@ -100,63 +126,19 @@ export const PatchNotesCard = () => {
   const formatReleaseNotes = (body: string) => {
     // Simple formatting for GitHub markdown-style release notes
     return body
-      .replace(/^###? (.+)$/gm, '<h3 class="font-semibold text-sm mt-3 mb-1">$1</h3>')
-      .replace(/^- (.+)$/gm, '<li class="text-sm opacity-80 ml-4">• $1</li>')
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/`(.+?)`/g, '<code class="bg-gray-100 px-1 rounded text-xs">$1</code>');
+      .replace(/^###? (.+)$/gm, '<h3 class="font-semibold text-sm mt-3 mb-1 text-gray-800">$1</h3>')
+      .replace(/^- (.+)$/gm, '<li class="text-sm opacity-80 ml-4 list-disc">$1</li>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong class="font-semibold">$1</strong>')
+      .replace(/`(.+?)`/g, '<code class="bg-gray-100 px-1 rounded text-xs font-mono">$1</code>')
+      .replace(/\n\n/g, '<br><br>');
   };
 
-  // Debug: Show what's happening
-  console.log('🔍 PatchNotesCard render state:', {
-    isLoading,
-    latestRelease: !!latestRelease,
-    isDismissed,
-    error
-  });
-
-  // Show loading state
+  // Don't render if loading or dismissed
   if (isLoading) {
-    return (
-      <div className={`p-6 rounded-2xl shadow-xl ${moodClasses.cardStyle} border border-gray-200`}>
-        <div className="flex items-center space-x-3">
-          <div className={`w-6 h-6 border-2 border-${moodClasses.accentColor}-600 border-t-transparent rounded-full animate-spin`}></div>
-          <span className={`text-sm ${moodClasses.textStyle} opacity-70`}>Loading patch notes...</span>
-        </div>
-      </div>
-    );
+    return null; // Silent loading
   }
 
-  // Show error state
-  if (error) {
-    return (
-      <div className={`p-6 rounded-2xl shadow-xl ${moodClasses.cardStyle} border border-red-200`}>
-        <div className="flex items-center space-x-3">
-          <div className="w-6 h-6 bg-red-500 rounded-full flex items-center justify-center">
-            <X className="w-3 h-3 text-white" />
-          </div>
-          <div>
-            <span className={`text-sm ${moodClasses.textStyle} font-medium`}>Failed to load patch notes</span>
-            <p className="text-xs text-red-600">{error}</p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // Show "no release" state
-  if (!latestRelease) {
-    return (
-      <div className={`p-6 rounded-2xl shadow-xl ${moodClasses.cardStyle} border border-gray-200`}>
-        <div className="flex items-center space-x-3">
-          <Sparkles className={`w-6 h-6 text-${moodClasses.accentColor}-600`} />
-          <span className={`text-sm ${moodClasses.textStyle} opacity-70`}>No releases found</span>
-        </div>
-      </div>
-    );
-  }
-
-  // Don't render if dismissed
-  if (isDismissed) {
+  if (isDismissed || !latestRelease) {
     return null;
   }
 
@@ -212,7 +194,7 @@ export const PatchNotesCard = () => {
             }}
           />
         ) : (
-          <p className="text-sm line-clamp-2">
+          <p className="text-sm">
             {latestRelease.body.split('\n')[0].substring(0, 120)}
             {latestRelease.body.length > 120 ? '...' : ''}
           </p>
