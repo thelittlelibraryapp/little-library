@@ -1,18 +1,18 @@
-// ===== Enhanced Navigation Component =====
-// Update your src/components/Navigation.tsx with this:
-
 'use client';
 
 import { useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/useAuth';
+import { useMood } from '@/contexts/MoodContext';
 import { BookOpen, Calendar, Home, LogOut, Menu, User, Users, X, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { MoodSelector } from '@/components/MoodSelector';
 import Link from 'next/link';
 
 export default function Navigation() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, logout } = useAuth();
+  const { currentMood, setMood } = useMood();
   const router = useRouter();
   const pathname = usePathname();
   const isAdmin = user?.email === 'm.dembling@gmail.com';
@@ -76,6 +76,12 @@ export default function Navigation() {
               })}
               
               <div className="flex items-center space-x-3 ml-6 pl-6 border-l border-amber-200">
+                {/* Mood Selector */}
+                <MoodSelector 
+                  currentMood={currentMood} 
+                  onMoodChange={setMood} 
+                />
+                
                 <div className="text-right">
                   <p className="text-sm font-medium text-slate-700">
                     {user?.firstName} {user?.lastName}
@@ -103,12 +109,21 @@ export default function Navigation() {
                 </h1>
               </div>
             </Link>
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="text-slate-600 hover:text-amber-700 p-2 rounded-lg hover:bg-amber-50 transition-colors"
-            >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
+            
+            <div className="flex items-center space-x-3">
+              {/* Mobile Mood Selector */}
+              <MoodSelector 
+                currentMood={currentMood} 
+                onMoodChange={setMood} 
+              />
+              
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="text-slate-600 hover:text-amber-700 p-2 rounded-lg hover:bg-amber-50 transition-colors"
+              >
+                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              </button>
+            </div>
           </div>
           
           {mobileMenuOpen && (
