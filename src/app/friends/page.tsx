@@ -288,7 +288,7 @@ function InvitationsList() {
   }
 
   const pendingReceived = invitations.filter(inv => inv.type === 'received' && inv.status === 'pending');
-  const sentInvitations = invitations.filter(inv => inv.type === 'sent');
+  const pendingSent = invitations.filter(inv => inv.type === 'sent' && inv.status === 'pending');
 
   return (
     <div className="space-y-6">
@@ -349,15 +349,15 @@ function InvitationsList() {
         </div>
       )}
 
-      {/* Sent Invitations */}
-      {sentInvitations.length > 0 && (
+      {/* Sent Invitations - ONLY PENDING */}
+      {pendingSent.length > 0 && (
         <div>
           <h3 className={`text-lg font-medium ${moodClasses.textStyle} mb-4 flex items-center`}>
             <Send className={`w-5 h-5 text-${moodClasses.accentColor}-600 mr-2`} />
-            Sent Invitations ({sentInvitations.length})
+            Sent Invitations ({pendingSent.length})
           </h3>
           <div className="space-y-3">
-            {sentInvitations.map((invitation) => (
+            {pendingSent.map((invitation) => (
               <div key={invitation.id} className={`p-4 rounded-2xl shadow-lg ${moodClasses.cardStyle}`}>
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
@@ -367,12 +367,8 @@ function InvitationsList() {
                         {invitation.inviteeName || invitation.inviteeEmail}
                       </span>
                       <div className="flex items-center space-x-2">
-                        <span className={`text-sm px-2 py-1 rounded-full ${
-                          invitation.status === 'accepted' ? 'bg-emerald-100 text-emerald-700' :
-                          invitation.status === 'declined' ? 'bg-red-100 text-red-700' : 
-                          'bg-yellow-100 text-yellow-700'
-                        }`}>
-                          {invitation.status}
+                        <span className="text-sm px-2 py-1 rounded-full bg-yellow-100 text-yellow-700">
+                          pending
                         </span>
                       </div>
                     </div>
@@ -391,11 +387,11 @@ function InvitationsList() {
       )}
 
       {/* Empty State */}
-      {invitations.length === 0 && (
+      {pendingReceived.length === 0 && pendingSent.length === 0 && (
         <div className="text-center py-8">
           <Mail className={`w-16 h-16 text-${moodClasses.accentColor}-300 mx-auto mb-4 opacity-60`} />
-          <h3 className={`text-lg font-medium ${moodClasses.textStyle} mb-2`}>No invitations</h3>
-          <p className={`${moodClasses.textStyle} opacity-70`}>Sent and received invitations will appear here.</p>
+          <h3 className={`text-lg font-medium ${moodClasses.textStyle} mb-2`}>No pending invitations</h3>
+          <p className={`${moodClasses.textStyle} opacity-70`}>Pending invitations will appear here.</p>
         </div>
       )}
     </div>
