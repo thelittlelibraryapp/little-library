@@ -4,7 +4,7 @@ import React, { useState, useEffect, use } from 'react';
 import { Heart, Share2, BookOpen, User, ArrowLeft, ExternalLink, Facebook } from 'lucide-react';
 import { useAuth } from '@/lib/useAuth';
 import { PublicBookCard } from '@/components/PublicBookCard';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface Book {
   id: string;
@@ -33,6 +33,7 @@ interface PublicFreeBooksPageProps {
 
 export default function PublicFreeBooksPage({ params }: PublicFreeBooksPageProps) {
   const { user } = useAuth();
+  const router = useRouter();
   const resolvedParams = use(params);
   const [books, setBooks] = useState<Book[]>([]);
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
@@ -113,6 +114,16 @@ export default function PublicFreeBooksPage({ params }: PublicFreeBooksPageProps
     alert('Link copied to clipboard!');
   };
 
+  const handleSignInClick = () => {
+    // Navigate to home page which will show auth form for non-authenticated users
+    router.push('/');
+  };
+
+  const handleCreateAccountClick = () => {
+    // Navigate to home page which will show auth form for non-authenticated users
+    router.push('/');
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50">
@@ -137,13 +148,13 @@ export default function PublicFreeBooksPage({ params }: PublicFreeBooksPageProps
               <BookOpen className="w-16 h-16 text-amber-400 mx-auto mb-4 opacity-60" />
               <h2 className="text-xl font-semibold text-amber-900 mb-2">User not found</h2>
               <p className="text-amber-700 opacity-70 mb-6">{error}</p>
-              <Link 
-                href="/"
+              <button
+                onClick={handleSignInClick}
                 className="inline-flex items-center space-x-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
               >
                 <ArrowLeft className="w-4 h-4" />
                 <span>Go to My Little Library</span>
-              </Link>
+              </button>
             </div>
           </div>
         </div>
@@ -188,13 +199,13 @@ export default function PublicFreeBooksPage({ params }: PublicFreeBooksPageProps
               </button>
 
               {!user && (
-                <Link
-                  href="/auth/login"
+                <button
+                  onClick={handleSignInClick}
                   className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white rounded-lg transition-all duration-200 hover:scale-105"
                 >
                   <User className="w-4 h-4" />
                   <span>Sign In</span>
-                </Link>
+                </button>
               )}
             </div>
           </div>
@@ -255,20 +266,20 @@ export default function PublicFreeBooksPage({ params }: PublicFreeBooksPageProps
                 and connect with fellow book lovers in your community.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Link
-                  href="/auth/signup"
+                <button
+                  onClick={handleCreateAccountClick}
                   className="inline-flex items-center justify-center space-x-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white px-8 py-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 font-medium"
                 >
                   <User className="w-5 h-5" />
                   <span>Create Free Account</span>
-                </Link>
-                <Link
-                  href="/auth/login"
+                </button>
+                <button
+                  onClick={handleSignInClick}
                   className="inline-flex items-center justify-center space-x-2 bg-white hover:bg-gray-50 text-amber-800 px-8 py-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 font-medium border border-amber-200"
                 >
                   <span>Already have an account?</span>
                   <ExternalLink className="w-4 h-4" />
-                </Link>
+                </button>
               </div>
             </div>
           )}
@@ -288,18 +299,18 @@ export default function PublicFreeBooksPage({ params }: PublicFreeBooksPageProps
                 Join My Little Library to claim books and share your own collection with friends.
               </p>
               <div className="flex flex-col space-y-3">
-                <Link
-                  href="/auth/signup"
+                <button
+                  onClick={handleCreateAccountClick}
                   className="w-full bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white py-3 px-6 rounded-xl font-medium transition-all duration-200 hover:scale-105"
                 >
                   Create Free Account
-                </Link>
-                <Link
-                  href="/auth/login"
+                </button>
+                <button
+                  onClick={handleSignInClick}
                   className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 py-3 px-6 rounded-xl font-medium transition-all duration-200"
                 >
                   Already have an account? Sign In
-                </Link>
+                </button>
                 <button
                   onClick={() => setShowSignupModal(false)}
                   className="text-gray-500 hover:text-gray-700 transition-colors text-sm"
