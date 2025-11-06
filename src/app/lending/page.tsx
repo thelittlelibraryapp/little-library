@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { BookOpen, Users, Calendar, CheckCircle, Clock } from 'lucide-react';
+import { BookOpen, Users, Calendar, CheckCircle, Clock, Gift, Mail, Truck } from 'lucide-react';
 import { useAuth } from '@/lib/useAuth';
 import { useMood } from '@/contexts/MoodContext';
 import { supabase } from '@/lib/supabase';
@@ -33,13 +33,26 @@ interface Book {
   transfer_id?: string;
 }
 
+interface ClaimNotification {
+  bookId: string;
+  bookTitle: string;
+  bookAuthor: string;
+  claimerName: string;
+  claimerUsername: string;
+  claimerEmail: string;
+  claimedAt: string;
+  timeRemaining: number;
+}
+
 export default function LendingPage() {
   const { user } = useAuth();
   const { currentMood, getMoodClasses } = useMood();
   const [borrowedBooks, setBorrowedBooks] = useState<Book[]>([]);
   const [lentBooks, setLentBooks] = useState<Book[]>([]);
+  const [claimNotifications, setClaimNotifications] = useState<ClaimNotification[]>([]);
   const [isLoadingBorrowed, setIsLoadingBorrowed] = useState(true);
   const [isLoadingLent, setIsLoadingLent] = useState(true);
+  const [isLoadingClaims, setIsLoadingClaims] = useState(true);
 
   const moodClasses = getMoodClasses();
 
@@ -47,6 +60,7 @@ export default function LendingPage() {
     if (user?.id) {
       loadBorrowedBooks();
       loadLentBooks();
+      loadClaimNotifications();
     }
   }, [user?.id]);
 
@@ -111,6 +125,29 @@ export default function LendingPage() {
       console.error('Failed to load lent books:', error);
     } finally {
       setIsLoadingLent(false);
+    }
+  };
+
+  const loadClaimNotifications = async () => {
+    try {
+      setIsLoadingClaims(true);
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+
+      const response = await fetch('/api/books/claimed-notifications', {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setClaimNotifications(result.notifications || []);
+      }
+    } catch (error) {
+      console.error('Failed to load claim notifications:', error);
+    } finally {
+      setIsLoadingClaims(false);
     }
   };
 
@@ -181,6 +218,95 @@ export default function LendingPage() {
               <p className={`${moodClasses.textStyle} opacity-70`}>Track your book exchanges with friends</p>
             </div>
           </div>
+
+          {/* CLAIMS INBOX - THE MISSING PIECE! */}
+          {isLoadingClaims ? (
+            <div className="text-center py-8">
+              <div className={`animate-spin rounded-full h-8 w-8 border-b-2 border-${moodClasses.accentColor}-600 mx-auto`}></div>
+              <p className={`${moodClasses.textStyle} opacity-70 mt-2`}>Loading claims...</p>
+            </div>
+          ) : claimNotifications.length > 0 ? (
+            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-2xl p-6 shadow-xl">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-2">
+                  <Gift className="w-6 h-6 text-amber-600" />
+                  <h2 className="text-xl font-bold text-amber-900">
+                    Claims Inbox ({claimNotifications.length})
+                  </h2>
+                </div>
+                <Badge variant="warning">Action Required</Badge>
+              </div>
+              <p className="text-amber-700 mb-4">
+                These people have claimed your free books! Contact them to arrange pickup/delivery.
+              </p>
+
+              <div className="space-y-3">
+                {claimNotifications.map((claim) => (
+                  <div
+                    key={claim.bookId}
+                    className="bg-white p-4 rounded-xl shadow-md border-l-4 border-l-amber-500"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <h3 className="font-semibold text-gray-900 mb-1">
+                          📚 {claim.bookTitle}
+                        </h3>
+                        <p className="text-sm text-gray-600 mb-2">by {claim.bookAuthor}</p>
+
+                        <div className="flex items-center space-x-4 mb-2">
+                          <div className="flex items-center space-x-2">
+                            <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center">
+                              <span className="text-purple-600 font-medium text-sm">
+                                {claim.claimerName.split(' ').map(n => n[0]).join('')}
+                              </span>
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-gray-900">{claim.claimerName}</p>
+                              <p className="text-xs text-gray-500">@{claim.claimerUsername}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center space-x-4 text-xs text-gray-600">
+                          <div className="flex items-center space-x-1">
+                            <Mail className="w-3 h-3" />
+                            <a href={`mailto:${claim.claimerEmail}`} className="hover:underline text-blue-600">
+                              {claim.claimerEmail}
+                            </a>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <Clock className="w-3 h-3" />
+                            <span>Claimed {new Date(claim.claimedAt).toLocaleDateString()}</span>
+                          </div>
+                          <div className="flex items-center space-x-1 text-amber-600 font-medium">
+                            <span>⏰ {claim.timeRemaining}h remaining</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="ml-4 flex flex-col space-y-2">
+                        <button
+                          onClick={() => {
+                            window.location.href = `/library`;
+                          }}
+                          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 hover:scale-105 flex items-center space-x-1 text-sm"
+                        >
+                          <Truck className="w-4 h-4" />
+                          <span>View in Library</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-4 p-3 bg-amber-100 rounded-lg">
+                <p className="text-xs text-amber-800">
+                  💡 <strong>Tip:</strong> Go to your Library page to mark books as "Handed Off" once you've given them to the claimer.
+                </p>
+              </div>
+            </div>
+          ) : null}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Books I'm Borrowing */}
