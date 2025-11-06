@@ -172,10 +172,10 @@ export default function DashboardPage() {
               </div>
               <div>
                 <h3 className="text-lg font-semibold text-purple-900">
-                  👋 Hello from Claude Code!
+                  👋 Hello from Claude Code! 🤖
                 </h3>
                 <p className="text-sm text-purple-700">
-                  This message was added directly by AI - no manual file editing required! Changes pushed to GitHub and deployed via Netlify automatically.
+                  This message was added directly by AI - no manual file editing required! Changes pushed to GitHub and deployed via Netlify automatically. (Updated: {new Date().toLocaleTimeString()})
                 </p>
               </div>
             </div>
