@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '@/lib/useAuth';
-import { BookOpen, User, Mail, Lock, ArrowLeft, AlertCircle, UserPlus } from 'lucide-react';
+import { BookOpen, User, Mail, Lock, ArrowLeft, AlertCircle, UserPlus, CheckCircle, Users } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
