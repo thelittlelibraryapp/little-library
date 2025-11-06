@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/useAuth';
 import { useMood } from '@/contexts/MoodContext';
+import { supabase } from '@/lib/supabase';
 import { BookOpen, Calendar, Home, LogOut, User, Users, Sparkles, Settings, Palette } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MoodSelector } from '@/components/MoodSelector';
@@ -11,12 +12,54 @@ import Link from 'next/link';
 
 export default function Navigation() {
   const [showMoodSelector, setShowMoodSelector] = useState(false);
+  const [notificationCount, setNotificationCount] = useState(0);
   const { user, logout } = useAuth();
   const { currentMood, setMood, getMoodClasses } = useMood();
   const router = useRouter();
   const pathname = usePathname();
   const isAdmin = user?.email === 'm.dembling@gmail.com';
   const moodClasses = getMoodClasses();
+
+  // Load notification count
+  useEffect(() => {
+    if (user?.id) {
+      loadNotificationCount();
+      // Refresh every 30 seconds
+      const interval = setInterval(loadNotificationCount, 30000);
+      return () => clearInterval(interval);
+    }
+  }, [user?.id]);
+
+  const loadNotificationCount = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) return;
+
+      // Get pending borrow requests count
+      const requestsResponse = await fetch(`/api/borrow/requests?userId=${user?.id}`);
+      let requestsCount = 0;
+      if (requestsResponse.ok) {
+        const result = await requestsResponse.json();
+        requestsCount = result.requests?.filter((req: any) =>
+          req.ownerId === user?.id && req.status === 'pending'
+        ).length || 0;
+      }
+
+      // Get claims count
+      const claimsResponse = await fetch('/api/books/claimed-notifications', {
+        headers: { 'Authorization': `Bearer ${session.access_token}` }
+      });
+      let claimsCount = 0;
+      if (claimsResponse.ok) {
+        const result = await claimsResponse.json();
+        claimsCount = result.notifications?.length || 0;
+      }
+
+      setNotificationCount(requestsCount + claimsCount);
+    } catch (error) {
+      console.error('Failed to load notification count:', error);
+    }
+  };
 
   // Check if we're on a public page
   const isPublicPage = pathname.startsWith('/public');
@@ -75,14 +118,21 @@ export default function Navigation() {
               <Link
                 key={item.id}
                 href={item.href}
-                className={`flex items-center px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group ${
+                className={`flex items-center justify-between px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 group ${
                   isActive
                     ? `${moodClasses.buttonStyle} text-white shadow-lg`
                     : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                 }`}
               >
-                <Icon className={`w-5 h-5 mr-3 ${isActive ? 'scale-110' : 'group-hover:scale-105'} transition-transform`} />
-                {item.label}
+                <div className="flex items-center">
+                  <Icon className={`w-5 h-5 mr-3 ${isActive ? 'scale-110' : 'group-hover:scale-105'} transition-transform`} />
+                  {item.label}
+                </div>
+                {item.id === 'lending' && notificationCount > 0 && (
+                  <span className={`${isActive ? 'bg-white text-purple-600' : 'bg-red-500 text-white'} text-xs font-bold px-2 py-0.5 rounded-full min-w-[1.25rem] text-center animate-pulse`}>
+                    {notificationCount}
+                  </span>
+                )}
               </Link>
             );
           })}
@@ -140,7 +190,7 @@ export default function Navigation() {
               <Link
                 key={item.id}
                 href={item.href}
-                className={`flex flex-col items-center justify-center space-y-1 transition-all duration-200 ${
+                className={`flex flex-col items-center justify-center space-y-1 transition-all duration-200 relative ${
                   isActive
                     ? `text-${moodClasses.accentColor}-600`
                     : 'text-slate-400'
@@ -148,6 +198,11 @@ export default function Navigation() {
               >
                 <Icon className={`w-6 h-6 ${isActive ? 'scale-110' : ''} transition-transform`} />
                 <span className="text-xs font-medium">{item.label}</span>
+                {item.id === 'lending' && notificationCount > 0 && (
+                  <span className="absolute top-1 right-3 bg-red-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center animate-pulse">
+                    {notificationCount}
+                  </span>
+                )}
               </Link>
             );
           })}
