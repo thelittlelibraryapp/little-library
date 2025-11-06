@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { BookOpen, CheckCircle, Clock, Users, Plus, ArrowRight } from 'lucide-react';
+import { BookOpen, CheckCircle, Clock, Users, Plus, ArrowRight, Heart, Share2, Bell, Sparkles, Mail, Globe } from 'lucide-react';
 import { useAuth } from '@/lib/useAuth';
 import { useMood } from '@/contexts/MoodContext';
 import { supabase } from '@/lib/supabase';
@@ -34,7 +34,7 @@ interface Book {
 }
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const { currentMood, getMoodClasses } = useMood();
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
@@ -151,6 +151,339 @@ export default function DashboardPage() {
     loadDashboardStats();
   };
 
+  // Landing Page for Visitors
+  if (!user && !authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50">
+        {/* Hero Section */}
+        <div className="relative overflow-hidden">
+          {/* Navigation Bar */}
+          <nav className="bg-white/80 backdrop-blur-sm border-b border-amber-200/50 sticky top-0 z-50">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex items-center justify-between h-16">
+                <div className="flex items-center space-x-2">
+                  <BookOpen className="w-7 h-7 text-amber-600" />
+                  <span className="text-xl font-bold text-amber-900">My Little Library</span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <Link
+                    href="/auth/login"
+                    className="px-4 py-2 text-amber-700 hover:text-amber-900 font-medium transition-colors"
+                  >
+                    Sign In
+                  </Link>
+                  <Link
+                    href="/auth/signup"
+                    className="px-6 py-2.5 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white rounded-xl font-medium shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105"
+                  >
+                    Get Started Free
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </nav>
+
+          {/* Hero Content */}
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+              {/* Left Column - Text */}
+              <div>
+                <div className="inline-flex items-center space-x-2 bg-white/80 backdrop-blur-sm px-4 py-2 rounded-full shadow-sm mb-6">
+                  <Sparkles className="w-4 h-4 text-amber-600" />
+                  <span className="text-sm font-medium text-amber-900">Free Forever</span>
+                </div>
+
+                <h1 className="text-5xl lg:text-6xl font-bold text-amber-950 mb-6 leading-tight">
+                  Share books with friends, build community
+                </h1>
+
+                <p className="text-xl text-amber-800 mb-8 leading-relaxed">
+                  The easiest way to lend books to friends, share your collection, and keep track of what's out there.
+                </p>
+
+                <div className="flex flex-col sm:flex-row gap-4 mb-8">
+                  <Link
+                    href="/auth/signup"
+                    className="inline-flex items-center justify-center space-x-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white px-8 py-4 rounded-xl font-semibold shadow-xl hover:shadow-2xl transition-all duration-200 hover:scale-105"
+                  >
+                    <span>Create Free Account</span>
+                    <ArrowRight className="w-5 h-5" />
+                  </Link>
+                  <a
+                    href="#features"
+                    className="inline-flex items-center justify-center space-x-2 bg-white hover:bg-amber-50 text-amber-900 px-8 py-4 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-200 border border-amber-200"
+                  >
+                    <span>See How It Works</span>
+                  </a>
+                </div>
+
+                <div className="flex items-center space-x-6 text-sm text-amber-700">
+                  <div className="flex items-center space-x-1">
+                    <CheckCircle className="w-5 h-5 text-emerald-600" />
+                    <span>No credit card</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <CheckCircle className="w-5 h-5 text-emerald-600" />
+                    <span>Always free</span>
+                  </div>
+                  <div className="flex items-center space-x-1">
+                    <CheckCircle className="w-5 h-5 text-emerald-600" />
+                    <span>Easy setup</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column - Visual */}
+              <div className="relative">
+                <div className="bg-white rounded-3xl shadow-2xl p-8 border border-amber-200/50 backdrop-blur-sm">
+                  {/* Mock Library View */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between mb-6">
+                      <h3 className="text-lg font-semibold text-amber-900">My Library</h3>
+                      <span className="text-sm text-amber-600 font-medium">12 books</span>
+                    </div>
+
+                    {/* Mock Book Cards */}
+                    <div className="grid grid-cols-2 gap-3">
+                      {[
+                        { title: "The Great Gatsby", author: "F. Scott Fitzgerald", status: "available" },
+                        { title: "1984", author: "George Orwell", status: "lent" },
+                        { title: "To Kill a Mockingbird", author: "Harper Lee", status: "available" },
+                        { title: "Pride and Prejudice", author: "Jane Austen", status: "available" }
+                      ].map((book, i) => (
+                        <div key={i} className="bg-gradient-to-br from-amber-50 to-orange-50 p-4 rounded-xl border border-amber-200/50">
+                          <div className="w-full h-24 bg-gradient-to-br from-amber-600 to-orange-600 rounded-lg mb-3 flex items-center justify-center">
+                            <BookOpen className="w-8 h-8 text-white" />
+                          </div>
+                          <p className="font-medium text-amber-900 text-sm line-clamp-1">{book.title}</p>
+                          <p className="text-xs text-amber-700 opacity-70 line-clamp-1">{book.author}</p>
+                          <div className="mt-2">
+                            <span className={`text-xs px-2 py-1 rounded-full ${book.status === 'available' ? 'bg-emerald-100 text-emerald-700' : 'bg-purple-100 text-purple-700'}`}>
+                              {book.status === 'available' ? 'Available' : 'Lent to friend'}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Floating Elements */}
+                <div className="absolute -top-4 -right-4 bg-white rounded-2xl shadow-xl p-4 border border-amber-200/50 animate-bounce">
+                  <div className="flex items-center space-x-2">
+                    <Bell className="w-5 h-5 text-purple-600" />
+                    <span className="text-sm font-medium text-purple-900">New request!</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Features Section */}
+        <div id="features" className="bg-white py-24">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-16">
+              <h2 className="text-4xl font-bold text-amber-950 mb-4">Everything you need to share books</h2>
+              <p className="text-xl text-amber-700">Simple, powerful features designed for book lovers</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {/* Feature 1 */}
+              <div className="bg-gradient-to-br from-amber-50 to-orange-50 p-8 rounded-2xl border border-amber-200/50 hover:shadow-xl transition-all duration-200">
+                <div className="w-12 h-12 bg-gradient-to-r from-amber-600 to-orange-600 rounded-xl flex items-center justify-center mb-4">
+                  <BookOpen className="w-6 h-6 text-white" />
+                </div>
+                <h3 className="text-xl font-semibold text-amber-950 mb-2">Manage Your Library</h3>
+                <p className="text-amber-700">
+                  Add books easily, track what you own, and organize your collection in beautiful grid or shelf views.
+                </p>
+              </div>
+
+              {/* Feature 2 */}
+              <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-8 rounded-2xl border border-purple-200/50 hover:shadow-xl transition-all duration-200">
+                <div className="w-12 h-12 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl flex items-center justify-center mb-4">
+                  <Users className="w-6 h-6 text-white" />
+                </div>
+                <h3 className="text-xl font-semibold text-purple-950 mb-2">Lend to Friends</h3>
+                <p className="text-purple-700">
+                  Friends can browse your library and request to borrow books. You approve, set due dates, and track returns.
+                </p>
+              </div>
+
+              {/* Feature 3 */}
+              <div className="bg-gradient-to-br from-emerald-50 to-teal-50 p-8 rounded-2xl border border-emerald-200/50 hover:shadow-xl transition-all duration-200">
+                <div className="w-12 h-12 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-xl flex items-center justify-center mb-4">
+                  <Heart className="w-6 h-6 text-white" />
+                </div>
+                <h3 className="text-xl font-semibold text-emerald-950 mb-2">Give Books Away</h3>
+                <p className="text-emerald-700">
+                  Mark books as "free to good home" and share a public link. Perfect for decluttering and spreading the love of reading!
+                </p>
+              </div>
+
+              {/* Feature 4 */}
+              <div className="bg-gradient-to-br from-blue-50 to-cyan-50 p-8 rounded-2xl border border-blue-200/50 hover:shadow-xl transition-all duration-200">
+                <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-cyan-600 rounded-xl flex items-center justify-center mb-4">
+                  <Share2 className="w-6 h-6 text-white" />
+                </div>
+                <h3 className="text-xl font-semibold text-blue-950 mb-2">Share Publicly</h3>
+                <p className="text-blue-700">
+                  Get a shareable link to your free books page. Post to Facebook, email to friends, or share however you like!
+                </p>
+              </div>
+
+              {/* Feature 5 */}
+              <div className="bg-gradient-to-br from-orange-50 to-red-50 p-8 rounded-2xl border border-orange-200/50 hover:shadow-xl transition-all duration-200">
+                <div className="w-12 h-12 bg-gradient-to-r from-orange-600 to-red-600 rounded-xl flex items-center justify-center mb-4">
+                  <Bell className="w-6 h-6 text-white" />
+                </div>
+                <h3 className="text-xl font-semibold text-orange-950 mb-2">Get Notified</h3>
+                <p className="text-orange-700">
+                  Never miss a request! Get notifications when friends want to borrow, books are claimed, or returns are due.
+                </p>
+              </div>
+
+              {/* Feature 6 */}
+              <div className="bg-gradient-to-br from-pink-50 to-rose-50 p-8 rounded-2xl border border-pink-200/50 hover:shadow-xl transition-all duration-200">
+                <div className="w-12 h-12 bg-gradient-to-r from-pink-600 to-rose-600 rounded-xl flex items-center justify-center mb-4">
+                  <Sparkles className="w-6 h-6 text-white" />
+                </div>
+                <h3 className="text-xl font-semibold text-pink-950 mb-2">Mood Themes</h3>
+                <p className="text-pink-700">
+                  Choose from 7 beautiful themes to personalize your library. From cozy to energetic, find your vibe!
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* How It Works Section */}
+        <div className="bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 py-24">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-16">
+              <h2 className="text-4xl font-bold text-amber-950 mb-4">How it works</h2>
+              <p className="text-xl text-amber-700">Get started in minutes</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {/* Step 1 */}
+              <div className="text-center">
+                <div className="w-16 h-16 bg-gradient-to-r from-amber-600 to-orange-600 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-6 shadow-lg">
+                  1
+                </div>
+                <h3 className="text-xl font-semibold text-amber-950 mb-3">Create Your Account</h3>
+                <p className="text-amber-700">
+                  Sign up free in seconds. No credit card required, no hidden fees, ever.
+                </p>
+              </div>
+
+              {/* Step 2 */}
+              <div className="text-center">
+                <div className="w-16 h-16 bg-gradient-to-r from-amber-600 to-orange-600 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-6 shadow-lg">
+                  2
+                </div>
+                <h3 className="text-xl font-semibold text-amber-950 mb-3">Add Your Books</h3>
+                <p className="text-amber-700">
+                  Enter your books manually or scan ISBN codes. Build your digital library in minutes.
+                </p>
+              </div>
+
+              {/* Step 3 */}
+              <div className="text-center">
+                <div className="w-16 h-16 bg-gradient-to-r from-amber-600 to-orange-600 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-6 shadow-lg">
+                  3
+                </div>
+                <h3 className="text-xl font-semibold text-amber-950 mb-3">Start Sharing</h3>
+                <p className="text-amber-700">
+                  Invite friends, lend books, or share your free books with the world. It's that easy!
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* CTA Section */}
+        <div className="bg-gradient-to-r from-amber-600 to-orange-600 py-20">
+          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <h2 className="text-4xl font-bold text-white mb-4">
+              Ready to start sharing books?
+            </h2>
+            <p className="text-xl text-amber-50 mb-8">
+              Join My Little Library today and connect with friends through the books you love.
+            </p>
+            <Link
+              href="/auth/signup"
+              className="inline-flex items-center space-x-2 bg-white hover:bg-amber-50 text-amber-900 px-8 py-4 rounded-xl font-semibold shadow-2xl hover:shadow-3xl transition-all duration-200 hover:scale-105"
+            >
+              <span>Create Free Account</span>
+              <ArrowRight className="w-5 h-5" />
+            </Link>
+            <p className="text-amber-100 mt-4 text-sm">
+              Already have an account?{' '}
+              <Link href="/auth/login" className="text-white font-semibold underline hover:no-underline">
+                Sign in here
+              </Link>
+            </p>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <footer className="bg-amber-950 text-amber-100 py-12">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+              <div className="col-span-1 md:col-span-2">
+                <div className="flex items-center space-x-2 mb-4">
+                  <BookOpen className="w-6 h-6 text-amber-400" />
+                  <span className="text-lg font-bold text-white">My Little Library</span>
+                </div>
+                <p className="text-amber-300 text-sm">
+                  Share books with friends, build community, and keep the joy of reading alive.
+                </p>
+              </div>
+
+              <div>
+                <h4 className="font-semibold text-white mb-3">Product</h4>
+                <ul className="space-y-2 text-sm">
+                  <li><a href="#features" className="hover:text-white transition-colors">Features</a></li>
+                  <li><Link href="/auth/signup" className="hover:text-white transition-colors">Sign Up</Link></li>
+                  <li><Link href="/auth/login" className="hover:text-white transition-colors">Log In</Link></li>
+                </ul>
+              </div>
+
+              <div>
+                <h4 className="font-semibold text-white mb-3">Connect</h4>
+                <ul className="space-y-2 text-sm">
+                  <li className="flex items-center space-x-2">
+                    <Globe className="w-4 h-4" />
+                    <span>mylittlelibrary.app</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="border-t border-amber-800 mt-8 pt-8 text-center text-sm text-amber-400">
+              <p>&copy; 2025 My Little Library. Made with ❤️ for book lovers.</p>
+            </div>
+          </div>
+        </footer>
+      </div>
+    );
+  }
+
+  // Show loading state while checking auth
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-amber-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-amber-800 opacity-70">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Dashboard for logged-in users
   return (
     <div className={`min-h-screen ${moodClasses.background} transition-all duration-1000 ease-in-out`}>
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">

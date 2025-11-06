@@ -45,25 +45,98 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-yellow-50 flex items-center justify-center p-4">
-      <div className="max-w-md w-full">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <Link 
-            href="/"
-            className="inline-flex items-center space-x-2 text-amber-600 hover:text-amber-700 transition-colors mb-4"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>Back to My Little Library</span>
-          </Link>
-          
-          <div className="flex items-center justify-center space-x-2 mb-4">
-            <BookOpen className="w-8 h-8 text-amber-600" />
-            <h1 className="text-2xl font-bold text-amber-900">My Little Library</h1>
+      <div className="max-w-5xl w-full">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+          {/* Left Column - Value Proposition (Hidden on mobile) */}
+          <div className="hidden lg:block">
+            <Link
+              href="/"
+              className="inline-flex items-center space-x-2 text-amber-600 hover:text-amber-700 transition-colors mb-6"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>Back to Home</span>
+            </Link>
+
+            <div className="bg-white/60 backdrop-blur-sm rounded-3xl shadow-xl p-8 border border-amber-200/50">
+              <div className="flex items-center space-x-2 mb-6">
+                <BookOpen className="w-10 h-10 text-amber-600" />
+                <h1 className="text-3xl font-bold text-amber-900">My Little Library</h1>
+              </div>
+
+              <h2 className="text-2xl font-bold text-amber-950 mb-4">
+                Start sharing books with friends today
+              </h2>
+
+              <p className="text-amber-700 mb-8 leading-relaxed">
+                Join thousands of book lovers using My Little Library to lend, borrow, and share their collections.
+              </p>
+
+              <div className="space-y-4">
+                <div className="flex items-start space-x-3">
+                  <div className="w-8 h-8 bg-gradient-to-r from-amber-600 to-orange-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <CheckCircle className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-amber-950">Manage Your Collection</h3>
+                    <p className="text-sm text-amber-700">Keep track of all your books in one beautiful place</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-3">
+                  <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <Users className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-amber-950">Lend to Friends</h3>
+                    <p className="text-sm text-amber-700">Friends can browse and request to borrow your books</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start space-x-3">
+                  <div className="w-8 h-8 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <BookOpen className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-amber-950">Share Publicly</h3>
+                    <p className="text-sm text-amber-700">Mark books as free and share with your community</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-8 p-4 bg-amber-100/50 rounded-xl border border-amber-200">
+                <p className="text-sm text-amber-800 font-medium">
+                  🎉 <strong>Always free!</strong> No credit card required, ever.
+                </p>
+              </div>
+            </div>
           </div>
-          
-          <h2 className="text-xl font-semibold text-amber-800 mb-2">Join the community!</h2>
-          <p className="text-amber-700 opacity-80">Create your free account</p>
-        </div>
+
+          {/* Right Column - Signup Form */}
+          <div>
+            {/* Mobile Header */}
+            <div className="text-center mb-8 lg:hidden">
+              <Link
+                href="/"
+                className="inline-flex items-center space-x-2 text-amber-600 hover:text-amber-700 transition-colors mb-4"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                <span>Back to Home</span>
+              </Link>
+
+              <div className="flex items-center justify-center space-x-2 mb-4">
+                <BookOpen className="w-8 h-8 text-amber-600" />
+                <h1 className="text-2xl font-bold text-amber-900">My Little Library</h1>
+              </div>
+
+              <h2 className="text-xl font-semibold text-amber-800 mb-2">Join the community!</h2>
+              <p className="text-amber-700 opacity-80">Create your free account</p>
+            </div>
+
+            {/* Desktop Header */}
+            <div className="hidden lg:block text-center mb-8">
+              <h2 className="text-2xl font-bold text-amber-800 mb-2">Create your account</h2>
+              <p className="text-amber-700 opacity-80">Get started in less than a minute</p>
+            </div>
 
         {/* Signup Form */}
         <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-xl p-8 border border-amber-200/50">
@@ -186,15 +259,16 @@ export default function SignupPage() {
           </form>
 
           <div className="mt-6 text-center">
-            <p className="text-amber-700 opacity-80 text-sm">
-              Already have an account?{' '}
-              <Link 
-                href="/auth/login" 
-                className="font-medium text-amber-600 hover:text-amber-700 transition-colors"
-              >
-                Sign in here
-              </Link>
-            </p>
+              <p className="text-amber-700 opacity-80 text-sm">
+                Already have an account?{' '}
+                <Link
+                  href="/auth/login"
+                  className="font-medium text-amber-600 hover:text-amber-700 transition-colors"
+                >
+                  Sign in here
+                </Link>
+              </p>
+            </div>
           </div>
         </div>
       </div>
