@@ -162,6 +162,7 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 
   // Define public routes that don't require authentication
   const publicRoutes = [
+    '/', // Home page - shows landing page for visitors, dashboard for logged-in users
     '/public', // All /public/* routes
     '/auth/login',
     '/auth/signup'
