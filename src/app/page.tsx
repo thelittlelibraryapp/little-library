@@ -164,6 +164,23 @@ export default function DashboardPage() {
           {/* Patch Notes Card */}
           <PatchNotesCard />
 
+          {/* Claude Code Demo Banner */}
+          <div className={`p-6 rounded-2xl shadow-xl border-l-4 border-l-purple-500 bg-gradient-to-r from-purple-50 to-blue-50 ${moodClasses.cardStyle}`}>
+            <div className="flex items-center space-x-3">
+              <div className="w-12 h-12 bg-gradient-to-r from-purple-500 to-blue-600 rounded-xl flex items-center justify-center">
+                <Star className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-purple-900">
+                  👋 Hello from Claude Code!
+                </h3>
+                <p className="text-sm text-purple-700">
+                  This message was added directly by AI - no manual file editing required! Changes pushed to GitHub and deployed via Netlify automatically.
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Hero Welcome Section */}
           <div className="relative overflow-hidden">
             <div className={`p-8 border-0 shadow-2xl rounded-2xl transition-all duration-200 ${moodClasses.cardStyle}`}>
