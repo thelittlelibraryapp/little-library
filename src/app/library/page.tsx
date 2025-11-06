@@ -1,13 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, BookOpen, Edit, Trash2, Share2, ExternalLink, Copy, Grid, Library, Eye, EyeOff } from 'lucide-react';
+import { Search, Plus, BookOpen, Grid, Library, Share2, Filter } from 'lucide-react';
 import { useAuth } from '@/lib/useAuth';
 import { useMood } from '@/contexts/MoodContext';
 import { supabase } from '@/lib/supabase';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { AddBookModal } from '@/components/AddBookModal';
 import { EditBookModal } from '@/components/EditBookModal';
 import { BookCard } from '@/components/BookCard';
@@ -48,7 +45,7 @@ export default function LibraryPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [error, setError] = useState('');
-  const [viewMode, setViewMode] = useState<'shelf' | 'grid'>('shelf');
+  const [viewMode, setViewMode] = useState<'shelf' | 'grid'>('grid');
 
   const moodClasses = getMoodClasses();
 
@@ -95,7 +92,7 @@ export default function LibraryPage() {
   };
 
   const handleBookUpdated = (updatedBook: Book) => {
-    setBooks(prev => prev.map(b => 
+    setBooks(prev => prev.map(b =>
       b.id === updatedBook.id ? updatedBook : b
     ));
     setIsEditModalOpen(false);
@@ -153,14 +150,14 @@ export default function LibraryPage() {
 
     const shareUrl = `${window.location.origin}/public/${user.username}`;
     const shareText = `Check out my free books! 📚 I'm giving away ${freeBooks.length} book${freeBooks.length !== 1 ? 's' : ''} to good homes.`;
-    
+
     // Copy to clipboard
     navigator.clipboard.writeText(`${shareText}\n\n${shareUrl}`);
-    
+
     // Also open Facebook share dialog
     const facebookUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(shareText)}`;
     window.open(facebookUrl, '_blank', 'width=600,height=400');
-    
+
     alert('Link copied to clipboard! Facebook share dialog opened.');
   };
 
@@ -173,225 +170,230 @@ export default function LibraryPage() {
 
   const freeToGoodHomeCount = books.filter(book => book.is_free_to_good_home).length;
 
+  const filterOptions = [
+    { value: 'all', label: 'All', count: books.length },
+    { value: 'available', label: 'Available', count: books.filter(b => b.status === 'available').length },
+    { value: 'checked_out', label: 'Borrowed', count: books.filter(b => b.status === 'checked_out').length },
+    { value: 'overdue', label: 'Overdue', count: books.filter(b => b.status === 'overdue').length },
+  ];
+
   if (isLoading) {
     return (
-      <div className={`min-h-screen ${moodClasses.background} transition-all duration-1000 ease-in-out`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex items-center justify-center p-8">
-            <div className="text-center">
-              <BookOpen className={`w-12 h-12 text-${moodClasses.accentColor}-600 mx-auto mb-4 animate-pulse`} />
-              <p className={`${moodClasses.textStyle} opacity-70`}>Loading your books...</p>
-            </div>
-          </div>
+      <div className={`min-h-screen ${moodClasses.background} flex items-center justify-center`}>
+        <div className="text-center">
+          <div className="w-12 h-12 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading your books...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className={`min-h-screen ${moodClasses.background} transition-all duration-1000 ease-in-out`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 md:py-8">
-        <div className="space-y-6">
-          {/* Mobile-Optimized Header */}
-          <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
-            <div className="text-center md:text-left">
-              <h1 className={`text-2xl md:text-3xl font-bold ${moodClasses.textStyle}`}>My Library</h1>
-              <p className={`${moodClasses.textStyle} opacity-70 text-sm md:text-base`}>
-                Manage your book collection ({books.length} books)
-              </p>
+    <div className={`min-h-screen ${moodClasses.background} transition-all duration-1000`}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-3xl lg:text-4xl font-bold text-slate-900 mb-1">My Library</h1>
+              <p className="text-slate-600">{books.length} books in your collection</p>
             </div>
-            
-            {/* Mobile actions */}
-            <div className="flex flex-col space-y-2 md:flex-row md:items-center md:space-y-0 md:space-x-3">
+            <div className="hidden lg:flex items-center space-x-3">
               {freeToGoodHomeCount > 0 && (
                 <button
                   onClick={shareMyFreeBooks}
-                  className="w-full md:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-4 py-2 md:px-6 md:py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 flex items-center justify-center space-x-2 text-sm md:text-base"
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 flex items-center space-x-2"
                 >
-                  <Share2 className="w-4 h-4" />
-                  <span className="hidden md:inline">Share My Free Books ({freeToGoodHomeCount})</span>
-                  <span className="md:hidden">Share Free Books ({freeToGoodHomeCount})</span>
+                  <Share2 className="w-5 h-5" />
+                  <span>Share Free Books ({freeToGoodHomeCount})</span>
                 </button>
               )}
-              
               <button
                 onClick={() => setIsAddModalOpen(true)}
-                className={`w-full md:w-auto ${moodClasses.buttonStyle} text-white px-4 py-2 md:px-6 md:py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 flex items-center justify-center space-x-2 text-sm md:text-base`}
+                className={`${moodClasses.buttonStyle} text-white px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 flex items-center space-x-2`}
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-5 h-5" />
                 <span>Add Book</span>
               </button>
             </div>
           </div>
 
-          {/* Share Free Books Banner - Mobile Optimized */}
+          {/* Free Books Quick Banner */}
           {freeToGoodHomeCount > 0 && (
-            <div className={`p-4 md:p-6 rounded-2xl shadow-xl border-l-4 border-l-blue-500 ${moodClasses.cardStyle}`}>
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
-                <div className="flex-1">
-                  <h3 className={`text-base md:text-lg font-semibold ${moodClasses.textStyle} mb-2`}>
-                    📚 You have {freeToGoodHomeCount} book{freeToGoodHomeCount !== 1 ? 's' : ''} marked as "Free to Good Home"
-                  </h3>
-                  <p className={`${moodClasses.textStyle} opacity-70 mb-3 text-sm md:text-base`}>
-                    Share your collection on Facebook and let friends claim books directly - no more managing comments!
-                  </p>
-                  <div className="text-xs text-blue-600 bg-blue-50 px-3 py-1 rounded-full inline-block">
-                    💡 Perfect for posting: "Cleaning out my bookshelf! Click to see what's available"
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-3">
+                  <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+                    <Share2 className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-slate-900">
+                      {freeToGoodHomeCount} book{freeToGoodHomeCount !== 1 ? 's' : ''} marked as free
+                    </p>
+                    <p className="text-sm text-slate-600">Share on Facebook to let friends claim them</p>
                   </div>
                 </div>
-                <div className="md:ml-6">
-                  <button
-                    onClick={shareMyFreeBooks}
-                    className="w-full md:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-4 py-2 md:px-6 md:py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 flex items-center justify-center space-x-2 text-sm md:text-base"
-                  >
-                    <Share2 className="w-4 h-4" />
-                    <span>Share on Facebook</span>
-                  </button>
-                </div>
+                <button
+                  onClick={shareMyFreeBooks}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-all duration-200 lg:hidden"
+                >
+                  Share
+                </button>
               </div>
             </div>
           )}
 
-          {/* Error Message */}
-          {error && (
-            <div className="p-4 bg-red-50/90 backdrop-blur-sm border border-red-200 rounded-xl">
-              <p className="text-sm text-red-600">{error}</p>
-              <button 
-                onClick={() => setError('')}
-                className="mt-2 text-xs text-red-500 hover:text-red-700 underline"
-              >
-                Dismiss
-              </button>
-            </div>
-          )}
-
-          {/* Search, Filters, and View Toggle */}
-          <div className={`p-4 md:p-6 rounded-2xl shadow-xl ${moodClasses.cardStyle}`}>
-            <div className="flex flex-col space-y-4 md:flex-row md:items-center md:space-y-0 md:space-x-4">
+          {/* Search & Filter Bar - Sticky */}
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sticky top-0 lg:top-0 z-20">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0 lg:space-x-4">
               {/* Search */}
               <div className="flex-1">
                 <div className="relative">
-                  <Search className={`w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-${moodClasses.accentColor}-400`} />
+                  <Search className="w-5 h-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
                   <input
                     type="text"
-                    placeholder="Search books..."
+                    placeholder="Search by title or author..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className={`w-full pl-10 pr-4 py-2 md:py-3 border-2 border-${moodClasses.accentColor}-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-${moodClasses.accentColor}-500 ${moodClasses.textStyle} placeholder-gray-400 bg-white/80 backdrop-blur-sm transition-all duration-200 text-sm md:text-base`}
+                    className="w-full pl-10 pr-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-300 text-slate-900 placeholder-slate-400"
                   />
                 </div>
               </div>
-              
-              {/* Filters and View Toggle */}
-              <div className="flex space-x-2">
-                <select
-                  value={filterStatus}
-                  onChange={(e) => setFilterStatus(e.target.value)}
-                  className={`px-3 py-2 md:px-4 md:py-3 border-2 border-${moodClasses.accentColor}-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-${moodClasses.accentColor}-500 ${moodClasses.textStyle} bg-white/80 backdrop-blur-sm transition-all duration-200 text-sm md:text-base`}
-                >
-                  <option value="all">All Books</option>
-                  <option value="available">Available</option>
-                  <option value="checked_out">Borrowed</option>
-                  <option value="overdue">Overdue</option>
-                </select>
-                
-                {/* View Mode Toggle */}
-                <div className="flex bg-white/80 backdrop-blur-sm border-2 border-gray-200 rounded-xl overflow-hidden">
-                  <button
-                    onClick={() => setViewMode('shelf')}
-                    className={`px-3 py-2 md:px-4 md:py-3 flex items-center space-x-2 transition-all duration-200 ${
-                      viewMode === 'shelf' 
-                        ? `bg-${moodClasses.accentColor}-600 text-white` 
-                        : 'text-gray-600 hover:bg-gray-100'
-                    }`}
-                  >
-                    <Library className="w-4 h-4" />
-                    <span className="hidden md:inline">Shelf</span>
-                  </button>
+
+              {/* View Mode Toggle */}
+              <div className="flex items-center space-x-2">
+                <div className="flex bg-slate-100 rounded-lg p-1">
                   <button
                     onClick={() => setViewMode('grid')}
-                    className={`px-3 py-2 md:px-4 md:py-3 flex items-center space-x-2 transition-all duration-200 ${
-                      viewMode === 'grid' 
-                        ? `bg-${moodClasses.accentColor}-600 text-white` 
-                        : 'text-gray-600 hover:bg-gray-100'
+                    className={`px-4 py-2 rounded-md flex items-center space-x-2 transition-all ${
+                      viewMode === 'grid'
+                        ? 'bg-white shadow-sm text-slate-900'
+                        : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
                     <Grid className="w-4 h-4" />
-                    <span className="hidden md:inline">Grid</span>
+                    <span className="hidden sm:inline">Grid</span>
+                  </button>
+                  <button
+                    onClick={() => setViewMode('shelf')}
+                    className={`px-4 py-2 rounded-md flex items-center space-x-2 transition-all ${
+                      viewMode === 'shelf'
+                        ? 'bg-white shadow-sm text-slate-900'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Library className="w-4 h-4" />
+                    <span className="hidden sm:inline">Shelf</span>
                   </button>
                 </div>
               </div>
             </div>
-          </div>
 
-          {/* Books Display */}
-          {filteredBooks.length > 0 ? (
-            <div className="transition-all duration-500">
-              {viewMode === 'shelf' ? (
-                <div className="overflow-x-auto">
-                  <Bookshelf
-                    books={filteredBooks}
+            {/* Filter Chips */}
+            <div className="flex items-center space-x-2 mt-4 overflow-x-auto pb-2">
+              <Filter className="w-4 h-4 text-slate-500 flex-shrink-0" />
+              {filterOptions.map(option => (
+                <button
+                  key={option.value}
+                  onClick={() => setFilterStatus(option.value)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+                    filterStatus === option.value
+                      ? `${moodClasses.buttonStyle} text-white shadow-md`
+                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                  }`}
+                >
+                  {option.label} ({option.count})
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl flex items-center justify-between">
+            <p className="text-sm text-red-600">{error}</p>
+            <button
+              onClick={() => setError('')}
+              className="text-red-600 hover:text-red-800"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
+
+        {/* Books Display */}
+        {filteredBooks.length > 0 ? (
+          <div>
+            {viewMode === 'grid' ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {filteredBooks.map(book => (
+                  <BookCard
+                    key={book.id}
+                    book={book}
                     onEdit={handleEditBook}
                     onDelete={handleDeleteBook}
                   />
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
-                  {filteredBooks.map(book => (
-                    <div key={book.id} data-book-id={book.id} className="transition-all duration-300 hover:scale-105">
-                      <BookCard 
-                        book={book} 
-                        onEdit={handleEditBook}
-                        onDelete={handleDeleteBook}
-                      />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className={`p-8 text-center rounded-2xl shadow-xl ${moodClasses.cardStyle}`}>
-              <BookOpen className={`w-16 h-16 text-${moodClasses.accentColor}-400 mx-auto mb-4 opacity-60`} />
-              <h3 className={`text-lg font-semibold ${moodClasses.textStyle} mb-2`}>
-                {searchTerm || filterStatus !== 'all' ? 'No books found' : 'No books yet'}
-              </h3>
-              <p className={`${moodClasses.textStyle} opacity-70 mb-4 text-sm md:text-base`}>
-                {searchTerm || filterStatus !== 'all' 
-                  ? "Try adjusting your search or filters" 
-                  : "Start building your library by adding your first book"
-                }
-              </p>
-              {!searchTerm && filterStatus === 'all' && (
-                <button
-                  onClick={() => setIsAddModalOpen(true)}
-                  className={`${moodClasses.buttonStyle} text-white px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 flex items-center space-x-2 mx-auto`}
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>Add Your First Book</span>
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Add Book Modal */}
-          <AddBookModal
-            isOpen={isAddModalOpen}
-            onClose={() => setIsAddModalOpen(false)}
-            onBookAdded={handleBookAdded}
-          />
-
-          {/* Edit Book Modal */}
-          <EditBookModal
-            isOpen={isEditModalOpen}
-            onClose={() => {
-              setIsEditModalOpen(false);
-              setEditingBook(null);
-            }}
-            book={editingBook}
-            onBookUpdated={handleBookUpdated}
-          />
-        </div>
+                ))}
+              </div>
+            ) : (
+              <Bookshelf
+                books={filteredBooks}
+                onEdit={handleEditBook}
+                onDelete={handleDeleteBook}
+              />
+            )}
+          </div>
+        ) : (
+          <div className="text-center py-16">
+            <BookOpen className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-slate-900 mb-2">
+              {searchTerm || filterStatus !== 'all' ? 'No books found' : 'No books yet'}
+            </h3>
+            <p className="text-slate-600 mb-6">
+              {searchTerm || filterStatus !== 'all'
+                ? 'Try adjusting your search or filters'
+                : 'Start building your library by adding your first book'
+              }
+            </p>
+            {!searchTerm && filterStatus === 'all' && (
+              <button
+                onClick={() => setIsAddModalOpen(true)}
+                className={`${moodClasses.buttonStyle} text-white px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all`}
+              >
+                <Plus className="w-5 h-5 inline mr-2" />
+                Add Your First Book
+              </button>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* Floating Action Button (Mobile) */}
+      <button
+        onClick={() => setIsAddModalOpen(true)}
+        className={`lg:hidden fixed bottom-20 right-6 ${moodClasses.buttonStyle} text-white w-14 h-14 rounded-full shadow-2xl hover:scale-110 transition-transform duration-200 z-30 flex items-center justify-center`}
+      >
+        <Plus className="w-6 h-6" />
+      </button>
+
+      {/* Add Book Modal */}
+      <AddBookModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onBookAdded={handleBookAdded}
+      />
+
+      {/* Edit Book Modal */}
+      <EditBookModal
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingBook(null);
+        }}
+        book={editingBook}
+        onBookUpdated={handleBookUpdated}
+      />
     </div>
   );
 }
