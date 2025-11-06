@@ -2,10 +2,16 @@
 
 import { usePathname } from "next/navigation";
 import Navigation from "@/components/Navigation";
+import { useAuth } from "@/lib/useAuth";
 
 export function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { user } = useAuth();
   const isPublicPage = pathname?.startsWith('/public');
+  const isAuthPage = pathname?.startsWith('/auth');
+
+  // No layout padding for non-logged-in users on home page or auth pages
+  const needsLayoutPadding = user && !isPublicPage;
 
   return (
     <div className="min-h-screen transition-all duration-1000 ease-in-out">
@@ -19,7 +25,7 @@ export function LayoutContent({ children }: { children: React.ReactNode }) {
       )}
       
       <Navigation />
-      <main className={`${isPublicPage ? 'pt-0' : 'pt-14 pb-20 lg:pt-0 lg:pb-8 lg:ml-64'} relative z-10`}>
+      <main className={`${needsLayoutPadding ? 'pt-14 pb-20 lg:pt-0 lg:pb-8 lg:ml-64' : 'pt-0'} relative z-10`}>
         {children}
       </main>
     </div>
