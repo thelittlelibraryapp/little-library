@@ -19,7 +19,7 @@ export function LayoutContent({ children }: { children: React.ReactNode }) {
       )}
       
       <Navigation />
-      <main className={`${isPublicPage ? 'pt-0' : 'pt-20'} pb-8 relative z-10`}>
+      <main className={`${isPublicPage ? 'pt-0' : 'pt-14 pb-20 lg:pt-0 lg:pb-8 lg:ml-64'} relative z-10`}>
         {children}
       </main>
     </div>
