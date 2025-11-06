@@ -152,10 +152,13 @@ export function FriendLibraryModal({ friend, isOpen, onClose }: FriendLibraryMod
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {sortedAndFilteredBooks.map((book) => (
-                  <BookCard 
-                    key={book.id} 
-                    book={book} 
+                  <BookCard
+                    key={book.id}
+                    book={book}
                     isOwner={false}  // CRITICAL: Tell component this is friend's view
+                    friendOwnerId={friend!.id}  // Pass owner ID for borrow requests
+                    friendOwnerName={`${friend!.firstName} ${friend!.lastName}`}  // Pass owner name
+                    onRequestSuccess={loadFriendBooks}  // Refresh on request
                   />
                 ))}
               </div>

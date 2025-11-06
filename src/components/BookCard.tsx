@@ -37,9 +37,12 @@ interface BookCardProps {
   onEdit?: (book: Book) => void;
   onDelete?: (bookId: string) => void;
   isOwner?: boolean;
+  friendOwnerId?: string;  // For borrow requests when viewing friend's library
+  friendOwnerName?: string;  // For borrow requests when viewing friend's library
+  onRequestSuccess?: () => void;  // Callback after successful request
 }
 
-export function BookCard({ book, onEdit, onDelete, isOwner = true }: BookCardProps) {
+export function BookCard({ book, onEdit, onDelete, isOwner = true, friendOwnerId, friendOwnerName, onRequestSuccess }: BookCardProps) {
   const { user } = useAuth();
   const [isUpdatingFreeStatus, setIsUpdatingFreeStatus] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -289,7 +292,7 @@ export function BookCard({ book, onEdit, onDelete, isOwner = true }: BookCardPro
     const isConfirmed = confirm(
       `Are you sure ${book.borrowerName} returned "${book.title}"?`
     );
-    
+
     if (!isConfirmed) return;
 
     try {
@@ -312,6 +315,47 @@ export function BookCard({ book, onEdit, onDelete, isOwner = true }: BookCardPro
       }
     } catch (error) {
       console.error('Error confirming book return:', error);
+    }
+  };
+
+  const handleRequestToBorrow = async () => {
+    if (!friendOwnerId || !user?.id) {
+      alert('Unable to create request. Please try again.');
+      return;
+    }
+
+    const message = prompt(`Add a message for ${friendOwnerName} (optional):`);
+    if (message === null) return; // User cancelled
+
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/borrow/request', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          bookId: book.id,
+          ownerId: friendOwnerId,
+          borrowerId: user.id,
+          message: message || undefined
+        })
+      });
+
+      if (response.ok) {
+        alert(`✅ Request sent to ${friendOwnerName}!\n\nThey'll be notified and can approve your request.`);
+        if (onRequestSuccess) {
+          onRequestSuccess();
+        }
+      } else {
+        const error = await response.json();
+        alert(`❌ ${error.error || 'Failed to send request'}`);
+      }
+    } catch (error) {
+      console.error('Error requesting book:', error);
+      alert('Failed to send borrow request. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -542,8 +586,8 @@ export function BookCard({ book, onEdit, onDelete, isOwner = true }: BookCardPro
 
         {/* CLAIMER: Confirm Received Button */}
         {isClaimedByCurrentUser && transferStatus === 'pending' && (
-          <Button 
-            size="sm" 
+          <Button
+            size="sm"
             variant="success"
             onClick={handleConfirmReceived}
             disabled={isLoading}
@@ -551,6 +595,24 @@ export function BookCard({ book, onEdit, onDelete, isOwner = true }: BookCardPro
           >
             <CheckCircle className="w-4 h-4 mr-1" />
             Confirm I Received It
+          </Button>
+        )}
+
+        {/* REQUEST TO BORROW BUTTON - THE MISSING PIECE! */}
+        {!isOwner && !isFreeToGoodHome && book.status === 'available' && friendOwnerId && (
+          <Button
+            size="sm"
+            variant="default"
+            onClick={handleRequestToBorrow}
+            disabled={isLoading}
+            className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
+          >
+            {isLoading ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-1"></div>
+            ) : (
+              <BookOpen className="w-4 h-4 mr-1" />
+            )}
+            Request to Borrow
           </Button>
         )}
 
