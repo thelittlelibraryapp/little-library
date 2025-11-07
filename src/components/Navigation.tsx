@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/useAuth';
 import { useMood } from '@/contexts/MoodContext';
 import { supabase } from '@/lib/supabase';
-import { BookOpen, Calendar, Home, LogOut, User, Users, Sparkles, Settings, Palette } from 'lucide-react';
+import { BookOpen, Calendar, Home, LogOut, User, Users, Sparkles, Settings, Palette, BookMarked } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { MoodSelector } from '@/components/MoodSelector';
 import Link from 'next/link';
@@ -77,6 +77,7 @@ export default function Navigation() {
   const navItems = [
     { id: 'dashboard', label: 'Home', icon: Home, href: '/' },
     { id: 'library', label: 'My Books', icon: BookOpen, href: '/library' },
+    { id: 'reading', label: 'My Reading', icon: BookMarked, href: '/reading' },
     { id: 'friends', label: 'Friends', icon: Users, href: '/friends' },
     { id: 'lending', label: 'Lending', icon: Calendar, href: '/lending' },
     ...(isAdmin ? [{ id: 'admin', label: 'Admin', icon: Settings, href: '/admin' }] : []),

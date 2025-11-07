@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Edit, Trash2, Gift, Trophy, XCircle, Truck, CheckCircle, BookOpen, User } from 'lucide-react';
+import { Edit, Trash2, Gift, Trophy, XCircle, Truck, CheckCircle, BookOpen, User, Star, BookMarked } from 'lucide-react';
 import { useAuth } from '@/lib/useAuth';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
@@ -30,6 +30,12 @@ interface Book {
   claim_expires_at?: string;
   transfer_status?: 'none' | 'pending' | 'completed';
   transfer_id?: string;
+  // Reading tracking fields
+  personalRating?: number | null;
+  readStatus?: 'want-to-read' | 'currently-reading' | 'read' | null;
+  readDate?: string | null;
+  readingNotes?: string | null;
+  tags?: string | null;
 }
 
 interface BookCardProps {
@@ -378,6 +384,55 @@ export function BookCard({ book, onEdit, onDelete, isOwner = true, friendOwnerId
     }
   };
 
+  const getReadingStatusBadge = () => {
+    if (!book.readStatus) return null;
+
+    switch (book.readStatus) {
+      case 'want-to-read':
+        return (
+          <Badge variant="default" className="bg-blue-600 text-white">
+            <BookMarked className="w-3 h-3 mr-1" />
+            Want to Read
+          </Badge>
+        );
+      case 'currently-reading':
+        return (
+          <Badge variant="default" className="bg-green-600 text-white">
+            <BookOpen className="w-3 h-3 mr-1" />
+            Reading
+          </Badge>
+        );
+      case 'read':
+        return (
+          <Badge variant="default" className="bg-purple-600 text-white">
+            <Star className="w-3 h-3 mr-1" />
+            Read
+          </Badge>
+        );
+      default:
+        return null;
+    }
+  };
+
+  const renderStarRating = () => {
+    if (!book.personalRating) return null;
+
+    return (
+      <div className="flex items-center space-x-1">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <Star
+            key={star}
+            className={`w-4 h-4 ${
+              star <= (book.personalRating || 0)
+                ? 'text-yellow-500 fill-yellow-500'
+                : 'text-gray-300'
+            }`}
+          />
+        ))}
+      </div>
+    );
+  };
+
   const getStatusBadge = () => {
     if (isFreeToGoodHome) {
       if (isClaimed) {
@@ -393,7 +448,7 @@ export function BookCard({ book, onEdit, onDelete, isOwner = true, friendOwnerId
         </Badge>
       );
     }
-    
+
     // Original status badges for non-free books
     switch (book.status) {
       case 'available':
@@ -479,6 +534,14 @@ export function BookCard({ book, onEdit, onDelete, isOwner = true, friendOwnerId
           )}
           {book.publicationYear && (
             <p className="text-sm text-gray-500">{book.publicationYear}</p>
+          )}
+
+          {/* Reading Status & Rating */}
+          {(book.readStatus || book.personalRating) && (
+            <div className="flex items-center space-x-2 mt-2">
+              {getReadingStatusBadge()}
+              {renderStarRating()}
+            </div>
           )}
         </div>
         {getStatusBadge()}

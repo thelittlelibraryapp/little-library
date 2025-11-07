@@ -108,7 +108,13 @@ export async function GET(request: NextRequest) {
         cover_image_url: book.cover_image_url || null,
         spine_image_url: book.spine_image_url || null,
         has_custom_cover: book.has_custom_cover || false,
-        has_custom_spine: book.has_custom_spine || false
+        has_custom_spine: book.has_custom_spine || false,
+        // READING TRACKING FIELDS
+        personalRating: book.personal_rating || null,
+        readStatus: book.read_status || null,
+        readDate: book.read_date || null,
+        readingNotes: book.reading_notes || null,
+        tags: book.tags || null
       };
     }) || [];
 
@@ -151,7 +157,10 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json();
-    const { title, author, isbn, genre, publicationYear, condition, notes } = body;
+    const {
+      title, author, isbn, genre, publicationYear, condition, notes,
+      personalRating, readStatus, readDate, readingNotes, tags
+    } = body;
 
     // Validate required fields
     if (!title || !author || !condition) {
@@ -170,6 +179,12 @@ export async function POST(request: NextRequest) {
         publication_year: publicationYear || null,
         condition,
         notes: notes || null,
+        // Reading tracking fields
+        personal_rating: personalRating || null,
+        read_status: readStatus || null,
+        read_date: readDate || null,
+        reading_notes: readingNotes || null,
+        tags: tags || null,
         added_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }])
@@ -213,7 +228,13 @@ export async function POST(request: NextRequest) {
       cover_image_url: null,
       spine_image_url: null,
       has_custom_cover: false,
-      has_custom_spine: false
+      has_custom_spine: false,
+      // Reading tracking fields
+      personalRating: book.personal_rating || null,
+      readStatus: book.read_status || null,
+      readDate: book.read_date || null,
+      readingNotes: book.reading_notes || null,
+      tags: book.tags || null
     };
 
     return NextResponse.json({ book: transformedBook }, { status: 201 });

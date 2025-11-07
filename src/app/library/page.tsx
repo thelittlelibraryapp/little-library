@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, BookOpen, Grid, Library, Share2, Filter, Camera } from 'lucide-react';
+import { Search, Plus, BookOpen, Grid, Library, Share2, Filter, Camera, FileText } from 'lucide-react';
 import { useAuth } from '@/lib/useAuth';
 import { useMood } from '@/contexts/MoodContext';
 import { supabase } from '@/lib/supabase';
@@ -10,6 +10,7 @@ import { EditBookModal } from '@/components/EditBookModal';
 import { BookCard } from '@/components/BookCard';
 import { Bookshelf } from '@/components/Bookshelf';
 import { ScanToAddBook } from '@/components/ScanToAddBook';
+import { GoodreadsImport } from '@/components/GoodreadsImport';
 
 interface Book {
   id: string;
@@ -42,6 +43,7 @@ export default function LibraryPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isScanModalOpen, setIsScanModalOpen] = useState(false);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingBook, setEditingBook] = useState<Book | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -215,6 +217,13 @@ export default function LibraryPage() {
                   <span>Share Free Books ({freeToGoodHomeCount})</span>
                 </button>
               )}
+              <button
+                onClick={() => setIsImportModalOpen(true)}
+                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 flex items-center space-x-2"
+              >
+                <FileText className="w-5 h-5" />
+                <span>Import from Goodreads</span>
+              </button>
               <button
                 onClick={() => setIsScanModalOpen(true)}
                 className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 flex items-center space-x-2"
@@ -396,6 +405,16 @@ export default function LibraryPage() {
       >
         <Plus className="w-6 h-6" />
       </button>
+
+      {/* Goodreads Import Modal */}
+      <GoodreadsImport
+        isOpen={isImportModalOpen}
+        onClose={() => setIsImportModalOpen(false)}
+        onImportComplete={() => {
+          fetchBooks();
+          setIsImportModalOpen(false);
+        }}
+      />
 
       {/* Scan Book Modal */}
       <ScanToAddBook

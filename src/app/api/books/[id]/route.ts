@@ -47,7 +47,10 @@ export async function PUT(
 
     // Parse request body
     const body = await request.json();
-    const { title, author, isbn, genre, publicationYear, condition, notes } = body;
+    const {
+      title, author, isbn, genre, publicationYear, condition, notes,
+      personalRating, readStatus, readDate, readingNotes, tags
+    } = body;
 
     // Validate required fields
     if (!title || !author || !condition) {
@@ -65,6 +68,12 @@ export async function PUT(
         publication_year: publicationYear || null,
         condition,
         notes: notes || null,
+        // Reading tracker fields
+        personal_rating: personalRating || null,
+        read_status: readStatus || null,
+        read_date: readDate || null,
+        reading_notes: readingNotes || null,
+        tags: tags || null,
         updated_at: new Date().toISOString()
       })
       .eq('id', bookId)
@@ -93,7 +102,13 @@ export async function PUT(
       condition: updatedBook.condition,
       notes: updatedBook.notes,
       status: statusData?.status || 'available',
-      addedAt: updatedBook.created_at
+      addedAt: updatedBook.created_at,
+      // Reading tracker fields
+      personalRating: updatedBook.personal_rating || null,
+      readStatus: updatedBook.read_status || null,
+      readDate: updatedBook.read_date || null,
+      readingNotes: updatedBook.reading_notes || null,
+      tags: updatedBook.tags || null
     };
 
     return NextResponse.json({ book: transformedBook });
