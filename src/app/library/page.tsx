@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, BookOpen, Grid, Library, Share2, Filter } from 'lucide-react';
+import { Search, Plus, BookOpen, Grid, Library, Share2, Filter, Camera } from 'lucide-react';
 import { useAuth } from '@/lib/useAuth';
 import { useMood } from '@/contexts/MoodContext';
 import { supabase } from '@/lib/supabase';
@@ -9,6 +9,7 @@ import { AddBookModal } from '@/components/AddBookModal';
 import { EditBookModal } from '@/components/EditBookModal';
 import { BookCard } from '@/components/BookCard';
 import { Bookshelf } from '@/components/Bookshelf';
+import { ScanToAddBook } from '@/components/ScanToAddBook';
 
 interface Book {
   id: string;
@@ -40,6 +41,7 @@ export default function LibraryPage() {
   const [books, setBooks] = useState<Book[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isScanModalOpen, setIsScanModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingBook, setEditingBook] = useState<Book | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -89,6 +91,11 @@ export default function LibraryPage() {
 
   const handleBookAdded = (newBook: Book) => {
     setBooks(prev => [newBook, ...prev]);
+  };
+
+  const handleBookScanned = () => {
+    // Refresh the books list after scanning
+    fetchBooks();
   };
 
   const handleBookUpdated = (updatedBook: Book) => {
@@ -208,6 +215,13 @@ export default function LibraryPage() {
                   <span>Share Free Books ({freeToGoodHomeCount})</span>
                 </button>
               )}
+              <button
+                onClick={() => setIsScanModalOpen(true)}
+                className="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 flex items-center space-x-2"
+              >
+                <Camera className="w-5 h-5" />
+                <span>Scan Book</span>
+              </button>
               <button
                 onClick={() => setIsAddModalOpen(true)}
                 className={`${moodClasses.buttonStyle} text-white px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 flex items-center space-x-2`}
@@ -369,13 +383,26 @@ export default function LibraryPage() {
         )}
       </div>
 
-      {/* Floating Action Button (Mobile) */}
+      {/* Floating Action Buttons (Mobile) */}
+      <button
+        onClick={() => setIsScanModalOpen(true)}
+        className="lg:hidden fixed bottom-36 right-6 bg-gradient-to-r from-emerald-600 to-teal-600 text-white w-14 h-14 rounded-full shadow-2xl hover:scale-110 transition-transform duration-200 z-30 flex items-center justify-center"
+      >
+        <Camera className="w-6 h-6" />
+      </button>
       <button
         onClick={() => setIsAddModalOpen(true)}
         className={`lg:hidden fixed bottom-20 right-6 ${moodClasses.buttonStyle} text-white w-14 h-14 rounded-full shadow-2xl hover:scale-110 transition-transform duration-200 z-30 flex items-center justify-center`}
       >
         <Plus className="w-6 h-6" />
       </button>
+
+      {/* Scan Book Modal */}
+      <ScanToAddBook
+        isOpen={isScanModalOpen}
+        onClose={() => setIsScanModalOpen(false)}
+        onBookAdded={handleBookScanned}
+      />
 
       {/* Add Book Modal */}
       <AddBookModal
