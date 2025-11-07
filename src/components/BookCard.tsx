@@ -36,6 +36,8 @@ interface Book {
   readDate?: string | null;
   readingNotes?: string | null;
   tags?: string | null;
+  // Ownership field
+  owned?: boolean;
 }
 
 interface BookCardProps {
@@ -51,6 +53,7 @@ interface BookCardProps {
 export function BookCard({ book, onEdit, onDelete, isOwner = true, friendOwnerId, friendOwnerName, onRequestSuccess }: BookCardProps) {
   const { user } = useAuth();
   const [isUpdatingFreeStatus, setIsUpdatingFreeStatus] = useState(false);
+  const [isUpdatingOwnership, setIsUpdatingOwnership] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [claimerInfo, setClaimerInfo] = useState<{
     name: string;
@@ -122,7 +125,7 @@ export function BookCard({ book, onEdit, onDelete, isOwner = true, friendOwnerId
 
   const handleToggleFreeStatus = async () => {
     if (!isOwner) return;
-    
+
     setIsUpdatingFreeStatus(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -134,9 +137,9 @@ export function BookCard({ book, onEdit, onDelete, isOwner = true, friendOwnerId
           'Authorization': `Bearer ${session.access_token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           isFreeToGoodHome: !isFreeToGoodHome,
-          deliveryMethod: deliveryMethod 
+          deliveryMethod: deliveryMethod
         })
       });
 
@@ -147,6 +150,54 @@ export function BookCard({ book, onEdit, onDelete, isOwner = true, friendOwnerId
       console.error('Error toggling free status:', error);
     } finally {
       setIsUpdatingFreeStatus(false);
+    }
+  };
+
+  const handleToggleOwnership = async () => {
+    if (!isOwner) return;
+
+    setIsUpdatingOwnership(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        alert('Please sign in to update book ownership');
+        return;
+      }
+
+      // Send all required fields along with the ownership update
+      const response = await fetch(`/api/books/${book.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          title: book.title,
+          author: book.author,
+          condition: book.condition,
+          isbn: book.isbn,
+          genre: book.genre,
+          publicationYear: book.publicationYear,
+          notes: book.notes,
+          personalRating: book.personalRating,
+          readStatus: book.readStatus,
+          readDate: book.readDate,
+          readingNotes: book.readingNotes,
+          tags: book.tags,
+          owned: !book.owned  // Toggle the ownership
+        })
+      });
+
+      if (response.ok) {
+        window.location.reload();
+      } else {
+        throw new Error('Failed to update ownership');
+      }
+    } catch (error) {
+      console.error('Error toggling ownership:', error);
+      alert('Failed to update book ownership');
+    } finally {
+      setIsUpdatingOwnership(false);
     }
   };
 
@@ -586,11 +637,29 @@ export function BookCard({ book, onEdit, onDelete, isOwner = true, friendOwnerId
 
       {/* ACTION BUTTONS */}
       <div className="flex flex-wrap gap-2 pt-3 border-t">
-        
+
+        {/* Ownership Toggle (Owner Only) */}
+        {isOwner && (
+          <Button
+            size="sm"
+            variant={book.owned ? "success" : "secondary"}
+            onClick={handleToggleOwnership}
+            disabled={isUpdatingOwnership}
+            className="flex-1"
+          >
+            {isUpdatingOwnership ? (
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-1"></div>
+            ) : (
+              <CheckCircle className="w-4 h-4 mr-1" />
+            )}
+            {book.owned ? '✓ I Own This' : 'Mark as Owned'}
+          </Button>
+        )}
+
         {/* Free to Good Home Toggle (Owner Only) */}
         {isOwner && !isClaimed && (
-          <Button 
-            size="sm" 
+          <Button
+            size="sm"
             variant={isFreeToGoodHome ? "success" : "secondary"}
             onClick={handleToggleFreeStatus}
             disabled={isUpdatingFreeStatus}
