@@ -409,7 +409,7 @@ interface BookshelfProps {
 
 export const Bookshelf: React.FC<BookshelfProps> = ({ books, onEdit, onDelete }) => {
   const [currentPage, setCurrentPage] = useState(0);
-  const [groupBy, setGroupBy] = useState<'none' | 'genre' | 'status' | 'rating'>('none');
+  const [groupBy, setGroupBy] = useState<'none' | 'genre' | 'status' | 'rating' | 'reading-status'>('none');
   const [selectedBook, setSelectedBook] = useState<BookData | null>(null);
 
   const booksPerShelf = 12; // Show 12 books per shelf
@@ -426,6 +426,18 @@ export const Bookshelf: React.FC<BookshelfProps> = ({ books, onEdit, onDelete })
       sorted.sort((a, b) => (a.status || '').localeCompare(b.status || ''));
     } else if (groupBy === 'rating') {
       sorted.sort((a, b) => (b.personalRating || 0) - (a.personalRating || 0));
+    } else if (groupBy === 'reading-status') {
+      // Sort by reading status: want-to-read, currently-reading, read, then untracked
+      const statusOrder: Record<string, number> = {
+        'want-to-read': 1,
+        'currently-reading': 2,
+        'read': 3,
+      };
+      sorted.sort((a, b) => {
+        const aOrder = a.readStatus ? statusOrder[a.readStatus] || 999 : 999;
+        const bOrder = b.readStatus ? statusOrder[b.readStatus] || 999 : 999;
+        return aOrder - bOrder;
+      });
     }
 
     return sorted;
@@ -437,10 +449,46 @@ export const Bookshelf: React.FC<BookshelfProps> = ({ books, onEdit, onDelete })
   const endIdx = startIdx + booksPerPage;
   const currentBooks = sortedBooks.slice(startIdx, endIdx);
 
-  // Group current books into shelves
-  const shelves = [];
-  for (let i = 0; i < currentBooks.length; i += booksPerShelf) {
-    shelves.push(currentBooks.slice(i, i + booksPerShelf));
+  // Group current books into shelves with section headers
+  interface ShelfSection {
+    books: BookData[];
+    sectionHeader?: string;
+    sectionCount?: number;
+  }
+
+  const shelves: ShelfSection[] = [];
+
+  if (groupBy === 'reading-status') {
+    // Create separate sections for each reading status
+    const wantToRead = currentBooks.filter(b => b.readStatus === 'want-to-read');
+    const currentlyReading = currentBooks.filter(b => b.readStatus === 'currently-reading');
+    const read = currentBooks.filter(b => b.readStatus === 'read');
+    const untracked = currentBooks.filter(b => !b.readStatus);
+
+    // Add shelves for each section
+    const addShelves = (books: BookData[], header: string) => {
+      if (books.length > 0) {
+        const totalCount = books.length;
+        for (let i = 0; i < books.length; i += booksPerShelf) {
+          const isFirstShelf = i === 0;
+          shelves.push({
+            books: books.slice(i, i + booksPerShelf),
+            sectionHeader: isFirstShelf ? header : undefined,
+            sectionCount: isFirstShelf ? totalCount : undefined,
+          });
+        }
+      }
+    };
+
+    addShelves(wantToRead, '📚 Want to Read');
+    addShelves(currentlyReading, '📖 Currently Reading');
+    addShelves(read, '✅ Read');
+    addShelves(untracked, '📗 Untracked');
+  } else {
+    // Regular pagination without section headers
+    for (let i = 0; i < currentBooks.length; i += booksPerShelf) {
+      shelves.push({ books: currentBooks.slice(i, i + booksPerShelf) });
+    }
   }
 
   return (
@@ -459,8 +507,9 @@ export const Bookshelf: React.FC<BookshelfProps> = ({ books, onEdit, onDelete })
             className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="none">None</option>
+            <option value="reading-status">Reading Status</option>
             <option value="genre">Genre</option>
-            <option value="status">Status</option>
+            <option value="status">Availability</option>
             <option value="rating">Rating</option>
           </select>
         </div>
@@ -494,8 +543,22 @@ export const Bookshelf: React.FC<BookshelfProps> = ({ books, onEdit, onDelete })
 
       {/* Shelves */}
       <div className="space-y-8">
-        {shelves.map((shelfBooks, shelfIndex) => (
+        {shelves.map((shelf, shelfIndex) => (
           <div key={shelfIndex} className="relative">
+            {/* Section Header */}
+            {shelf.sectionHeader && (
+              <div className="mb-4">
+                <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2 bg-gradient-to-r from-amber-50 to-transparent py-3 px-4 rounded-lg border-l-4 border-amber-600">
+                  {shelf.sectionHeader}
+                  {shelf.sectionCount && (
+                    <span className="text-sm font-normal text-gray-600">
+                      ({shelf.sectionCount} {shelf.sectionCount === 1 ? 'book' : 'books'})
+                    </span>
+                  )}
+                </h3>
+              </div>
+            )}
+
             {/* Shelf */}
             <div className="relative bg-gradient-to-b from-amber-700 to-amber-800 rounded-lg p-4 shadow-lg">
               {/* Wood grain effect */}
@@ -509,7 +572,7 @@ export const Bookshelf: React.FC<BookshelfProps> = ({ books, onEdit, onDelete })
                 </div>
 
                 {/* Books */}
-                {shelfBooks.map((book) => (
+                {shelf.books.map((book) => (
                   <BookSpine
                     key={book.id}
                     book={book}
@@ -518,7 +581,7 @@ export const Bookshelf: React.FC<BookshelfProps> = ({ books, onEdit, onDelete })
                 ))}
 
                 {/* Fill empty slots with placeholders */}
-                {[...Array(booksPerShelf - shelfBooks.length)].map((_, i) => (
+                {[...Array(booksPerShelf - shelf.books.length)].map((_, i) => (
                   <div key={`empty-${i}`} className="w-16 h-64 opacity-10">
                     <BookMarked className="w-full h-full text-white/30" />
                   </div>
