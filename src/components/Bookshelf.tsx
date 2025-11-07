@@ -316,6 +316,24 @@ const BookDetailModal: React.FC<BookDetailModalProps> = ({ book, onClose, onEdit
 const BookSpine: React.FC<BookSpineProps> = ({ book, onClick }) => {
   const gradient = getGenreColor(book.genre);
 
+  // Create consistent random sizes based on book ID
+  const getBookDimensions = (id: string) => {
+    // Use book ID to seed random-like values (consistent per book)
+    const hash = id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+
+    // Height variations: 48-72 (192px-288px in h-units)
+    const heights = ['h-48', 'h-52', 'h-56', 'h-60', 'h-64', 'h-72'];
+    const heightClass = heights[hash % heights.length];
+
+    // Width variations: 12-20 (48px-80px in w-units)
+    const widths = ['w-12', 'w-14', 'w-16', 'w-18', 'w-20'];
+    const widthClass = widths[(hash * 3) % widths.length];
+
+    return { heightClass, widthClass };
+  };
+
+  const { heightClass, widthClass } = getBookDimensions(book.id);
+
   const getStatusIndicator = () => {
     if (book.is_free_to_good_home) return '🎁';
     switch (book.status) {
@@ -335,9 +353,9 @@ const BookSpine: React.FC<BookSpineProps> = ({ book, onClick }) => {
 
   return (
     <div className="relative group">
-      {/* Wide, readable book spine */}
+      {/* Book spine with random dimensions */}
       <div
-        className={`h-64 w-16 relative cursor-pointer transition-all duration-200 hover:scale-105 hover:-translate-y-1 hover:shadow-xl`}
+        className={`${heightClass} ${widthClass} relative cursor-pointer transition-all duration-200 hover:scale-105 hover:-translate-y-1 hover:shadow-xl`}
         onClick={() => onClick(book)}
       >
         <div className={`h-full w-full bg-gradient-to-br ${gradient} rounded-sm shadow-md relative overflow-hidden border border-black/10`}>
@@ -346,50 +364,35 @@ const BookSpine: React.FC<BookSpineProps> = ({ book, onClick }) => {
           <div className="absolute right-0 top-0 bottom-0 w-0.5 bg-white/30"></div>
 
           {/* Status indicator at top */}
-          <div className="absolute top-2 left-0 right-0 text-center text-sm">
+          <div className="absolute top-1 left-0 right-0 text-center text-xs">
             {getStatusIndicator()}
           </div>
 
           {/* Rating stars */}
           {book.personalRating && book.personalRating > 0 && (
-            <div className="absolute top-6 left-0 right-0 flex justify-center">
+            <div className="absolute top-5 left-0 right-0 flex justify-center gap-0.5">
               {[...Array(book.personalRating)].map((_, i) => (
                 <Star key={i} className="w-2 h-2 text-yellow-300 fill-yellow-300" />
               ))}
             </div>
           )}
 
-          {/* Read status badge */}
-          {book.readStatus && (
-            <div className="absolute top-12 left-1 right-1">
-              <div className={`text-xs rounded-full py-0.5 text-white text-center font-medium ${
-                book.readStatus === 'read' ? 'bg-green-600/80' :
-                book.readStatus === 'currently-reading' ? 'bg-blue-600/80' :
-                'bg-amber-600/80'
-              }`}>
-                {book.readStatus === 'read' ? 'Read' :
-                 book.readStatus === 'currently-reading' ? 'Reading' :
-                 'Want'}
-              </div>
-            </div>
-          )}
-
           {/* Title and author - HORIZONTAL text in center */}
-          <div className="absolute inset-0 flex items-center justify-center p-1">
+          <div className="absolute inset-0 flex items-center justify-center px-1 py-2">
             <div className="text-center">
-              <p className="text-[10px] leading-tight font-bold text-white text-shadow mb-1 break-words">
-                {truncate(book.title, 40)}
+              <p className="text-[9px] leading-tight font-bold text-white drop-shadow-md mb-0.5 break-words line-clamp-3">
+                {book.title}
               </p>
-              <p className="text-[8px] leading-tight text-white/90 text-shadow break-words">
-                {truncate(book.author, 25)}
+              <p className="text-[7px] leading-tight text-white/90 drop-shadow-sm break-words line-clamp-2">
+                {book.author}
               </p>
             </div>
           </div>
 
           {/* Genre label at bottom */}
-          <div className="absolute bottom-2 left-0 right-0 text-center">
-            <div className="text-[8px] uppercase font-semibold text-white/70 tracking-wider">
-              {book.genre?.substring(0, 8) || ''}
+          <div className="absolute bottom-1 left-0 right-0 text-center">
+            <div className="text-[7px] uppercase font-semibold text-white/60 tracking-wide">
+              {book.genre?.substring(0, 10) || ''}
             </div>
           </div>
 
@@ -408,13 +411,10 @@ interface BookshelfProps {
 }
 
 export const Bookshelf: React.FC<BookshelfProps> = ({ books, onEdit, onDelete }) => {
-  const [currentPage, setCurrentPage] = useState(0);
-  const [groupBy, setGroupBy] = useState<'none' | 'genre' | 'status' | 'rating' | 'reading-status'>('none');
+  const [groupBy, setGroupBy] = useState<'none' | 'genre' | 'status' | 'rating' | 'reading-status'>('reading-status');
   const [selectedBook, setSelectedBook] = useState<BookData | null>(null);
 
-  const booksPerShelf = 12; // Show 12 books per shelf
-  const shelvesPerPage = 3; // Show 3 shelves per page
-  const booksPerPage = booksPerShelf * shelvesPerPage;
+  const booksPerShelf = 15; // More books per shelf for natural look
 
   // Group books if needed
   const groupedBooks = () => {
@@ -444,12 +444,8 @@ export const Bookshelf: React.FC<BookshelfProps> = ({ books, onEdit, onDelete })
   };
 
   const sortedBooks = groupedBooks();
-  const totalPages = Math.ceil(sortedBooks.length / booksPerPage);
-  const startIdx = currentPage * booksPerPage;
-  const endIdx = startIdx + booksPerPage;
-  const currentBooks = sortedBooks.slice(startIdx, endIdx);
 
-  // Group current books into shelves with section headers
+  // Group all books into shelves with section headers
   interface ShelfSection {
     books: BookData[];
     sectionHeader?: string;
@@ -460,10 +456,10 @@ export const Bookshelf: React.FC<BookshelfProps> = ({ books, onEdit, onDelete })
 
   if (groupBy === 'reading-status') {
     // Create separate sections for each reading status
-    const wantToRead = currentBooks.filter(b => b.readStatus === 'want-to-read');
-    const currentlyReading = currentBooks.filter(b => b.readStatus === 'currently-reading');
-    const read = currentBooks.filter(b => b.readStatus === 'read');
-    const untracked = currentBooks.filter(b => !b.readStatus);
+    const wantToRead = sortedBooks.filter(b => b.readStatus === 'want-to-read');
+    const currentlyReading = sortedBooks.filter(b => b.readStatus === 'currently-reading');
+    const read = sortedBooks.filter(b => b.readStatus === 'read');
+    const untracked = sortedBooks.filter(b => !b.readStatus);
 
     // Add shelves for each section
     const addShelves = (books: BookData[], header: string) => {
@@ -485,9 +481,9 @@ export const Bookshelf: React.FC<BookshelfProps> = ({ books, onEdit, onDelete })
     addShelves(read, '✅ Read');
     addShelves(untracked, '📗 Untracked');
   } else {
-    // Regular pagination without section headers
-    for (let i = 0; i < currentBooks.length; i += booksPerShelf) {
-      shelves.push({ books: currentBooks.slice(i, i + booksPerShelf) });
+    // Show all books without pagination
+    for (let i = 0; i < sortedBooks.length; i += booksPerShelf) {
+      shelves.push({ books: sortedBooks.slice(i, i + booksPerShelf) });
     }
   }
 
@@ -500,10 +496,7 @@ export const Bookshelf: React.FC<BookshelfProps> = ({ books, onEdit, onDelete })
           <span className="text-sm font-medium text-gray-700">Group by:</span>
           <select
             value={groupBy}
-            onChange={(e) => {
-              setGroupBy(e.target.value as any);
-              setCurrentPage(0); // Reset to first page
-            }}
+            onChange={(e) => setGroupBy(e.target.value as any)}
             className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="none">None</option>
@@ -514,30 +507,9 @@ export const Bookshelf: React.FC<BookshelfProps> = ({ books, onEdit, onDelete })
           </select>
         </div>
 
-        {/* Pagination */}
-        <div className="flex items-center space-x-4">
-          <span className="text-sm text-gray-600">
-            Showing {startIdx + 1}-{Math.min(endIdx, sortedBooks.length)} of {sortedBooks.length}
-          </span>
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
-              disabled={currentPage === 0}
-              className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            >
-              <ChevronLeft className="w-5 h-5 text-gray-700" />
-            </button>
-            <span className="text-sm font-medium text-gray-700 min-w-[80px] text-center">
-              Page {currentPage + 1} / {totalPages}
-            </span>
-            <button
-              onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))}
-              disabled={currentPage >= totalPages - 1}
-              className="p-2 rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            >
-              <ChevronRight className="w-5 h-5 text-gray-700" />
-            </button>
-          </div>
+        {/* Total count */}
+        <div className="text-sm text-gray-600">
+          {sortedBooks.length} {sortedBooks.length === 1 ? 'book' : 'books'} • {shelves.length} {shelves.length === 1 ? 'shelf' : 'shelves'}
         </div>
       </div>
 
@@ -564,14 +536,14 @@ export const Bookshelf: React.FC<BookshelfProps> = ({ books, onEdit, onDelete })
               {/* Wood grain effect */}
               <div className="absolute inset-0 bg-gradient-to-r from-amber-600/20 via-transparent to-amber-900/20 rounded-lg"></div>
 
-              {/* Books container */}
-              <div className="flex items-end justify-start space-x-1 min-h-[280px] overflow-x-auto pb-4">
+              {/* Books container - natural shelf look */}
+              <div className="flex items-end justify-start space-x-1 min-h-[320px] overflow-x-auto pb-4 px-2">
                 {/* Left bookend */}
-                <div className="flex-shrink-0 w-6 h-56 bg-gradient-to-b from-stone-600 to-stone-800 rounded-sm shadow-lg mr-2">
+                <div className="flex-shrink-0 w-8 h-60 bg-gradient-to-b from-stone-600 to-stone-800 rounded-sm shadow-lg mr-3">
                   <div className="h-full w-full bg-gradient-to-r from-stone-500/20 to-stone-900/20 rounded-sm"></div>
                 </div>
 
-                {/* Books */}
+                {/* Books - naturally varying sizes */}
                 {shelf.books.map((book) => (
                   <BookSpine
                     key={book.id}
@@ -580,28 +552,14 @@ export const Bookshelf: React.FC<BookshelfProps> = ({ books, onEdit, onDelete })
                   />
                 ))}
 
-                {/* Fill empty slots with placeholders */}
-                {[...Array(booksPerShelf - shelf.books.length)].map((_, i) => (
-                  <div key={`empty-${i}`} className="w-16 h-64 opacity-10">
-                    <BookMarked className="w-full h-full text-white/30" />
-                  </div>
-                ))}
-
                 {/* Right bookend */}
-                <div className="flex-shrink-0 w-6 h-56 bg-gradient-to-b from-stone-600 to-stone-800 rounded-sm shadow-lg ml-2">
+                <div className="flex-shrink-0 w-8 h-60 bg-gradient-to-b from-stone-600 to-stone-800 rounded-sm shadow-lg ml-3">
                   <div className="h-full w-full bg-gradient-to-r from-stone-900/20 to-stone-500/20 rounded-sm"></div>
                 </div>
               </div>
 
               {/* Shelf edge */}
               <div className="absolute -bottom-2 left-0 right-0 h-4 bg-gradient-to-b from-amber-800 to-amber-900 rounded-b-lg shadow-lg"></div>
-            </div>
-
-            {/* Shelf label */}
-            <div className="text-center mt-4">
-              <span className="text-sm font-medium text-amber-800 bg-amber-50 px-3 py-1 rounded-full">
-                Shelf {currentPage * shelvesPerPage + shelfIndex + 1}
-              </span>
             </div>
           </div>
         ))}
