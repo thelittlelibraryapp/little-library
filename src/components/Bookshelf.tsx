@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Book, Edit, Trash2, ChevronLeft, ChevronRight, Filter, Star, BookMarked, X, Calendar, Tag } from 'lucide-react';
+import { Book, Edit, Trash2, ChevronLeft, ChevronRight, Filter, Star, BookMarked, X, Calendar, Tag, Grid3x3, Columns3, Check } from 'lucide-react';
 
 interface BookData {
   id: string;
@@ -30,6 +30,7 @@ interface BookData {
   readDate?: string | null;
   readingNotes?: string | null;
   tags?: string | null;
+  owned?: boolean;
 }
 
 interface BookSpineProps {
@@ -60,6 +61,86 @@ const getGenreColor = (genre?: string) => {
 
   const genreKey = genre?.toLowerCase() || 'other';
   return colors[genreKey as keyof typeof colors] || colors.other;
+};
+
+// Book Grid Card Component
+interface BookGridCardProps {
+  book: BookData;
+  onClick: (book: BookData) => void;
+}
+
+const BookGridCard: React.FC<BookGridCardProps> = ({ book, onClick }) => {
+  const [coverUrl, setCoverUrl] = useState<string | null>(null);
+  const gradient = getGenreColor(book.genre);
+
+  useEffect(() => {
+    const fetchCover = async () => {
+      if (!book.isbn) return;
+
+      try {
+        const response = await fetch(
+          `https://www.googleapis.com/books/v1/volumes?q=isbn:${book.isbn}`
+        );
+        const data = await response.json();
+
+        if (data.items && data.items[0]?.volumeInfo?.imageLinks) {
+          const imageLinks = data.items[0].volumeInfo.imageLinks;
+          setCoverUrl(imageLinks.thumbnail || imageLinks.smallThumbnail);
+        }
+      } catch (error) {
+        console.error('Error fetching cover:', error);
+      }
+    };
+
+    fetchCover();
+  }, [book.isbn]);
+
+  return (
+    <div
+      onClick={() => onClick(book)}
+      className="group relative cursor-pointer transition-all duration-200 hover:scale-105 hover:z-10"
+    >
+      <div className="relative aspect-[2/3] rounded-md overflow-hidden shadow-md hover:shadow-xl">
+        {coverUrl ? (
+          <img
+            src={coverUrl}
+            alt={book.title}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className={`w-full h-full bg-gradient-to-br ${gradient} flex flex-col items-center justify-center p-2`}>
+            <p className="text-white text-xs font-bold text-center mb-1 line-clamp-3">
+              {book.title}
+            </p>
+            <p className="text-white/80 text-[10px] text-center line-clamp-2">
+              {book.author}
+            </p>
+          </div>
+        )}
+
+        {/* Owned badge */}
+        {book.owned && (
+          <div className="absolute top-1 right-1 bg-green-500 text-white rounded-full p-1">
+            <Check className="w-3 h-3" />
+          </div>
+        )}
+
+        {/* Rating stars */}
+        {book.personalRating && book.personalRating > 0 && (
+          <div className="absolute bottom-1 left-1 right-1 flex justify-center gap-0.5 bg-black/40 backdrop-blur-sm rounded py-0.5">
+            {[...Array(book.personalRating)].map((_, i) => (
+              <Star key={i} className="w-2.5 h-2.5 text-yellow-400 fill-yellow-400" />
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Hover tooltip */}
+      <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20">
+        {book.title}
+      </div>
+    </div>
+  );
 };
 
 // Book Detail Modal Component
@@ -159,11 +240,22 @@ const BookDetailModal: React.FC<BookDetailModalProps> = ({ book, onClose, onEdit
               <h2 className="text-2xl font-bold text-gray-900 mb-1">{book.title}</h2>
               <p className="text-lg text-gray-600 mb-4">by {book.author}</p>
 
-              {/* Status Badge */}
-              <div className="flex items-center gap-2 mb-4">
+              {/* Status Badges */}
+              <div className="flex items-center gap-2 mb-4 flex-wrap">
                 <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(book.status)}`}>
                   {getStatusLabel(book.status)}
                 </span>
+                {book.owned && (
+                  <span className="px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 flex items-center gap-1">
+                    <Check className="w-4 h-4" />
+                    I Own This
+                  </span>
+                )}
+                {!book.owned && (
+                  <span className="px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800">
+                    ♡ Wishlist
+                  </span>
+                )}
                 {book.is_free_to_good_home && (
                   <span className="px-3 py-1 rounded-full text-sm font-medium bg-pink-100 text-pink-800">
                     🎁 Free to Good Home
@@ -413,12 +505,26 @@ interface BookshelfProps {
 export const Bookshelf: React.FC<BookshelfProps> = ({ books, onEdit, onDelete }) => {
   const [groupBy, setGroupBy] = useState<'none' | 'genre' | 'status' | 'rating' | 'reading-status'>('reading-status');
   const [selectedBook, setSelectedBook] = useState<BookData | null>(null);
+  const [viewType, setViewType] = useState<'shelf' | 'grid'>('grid'); // Default to grid view
+  const [ownershipFilter, setOwnershipFilter] = useState<'owned' | 'all' | 'wishlist'>('owned'); // Default to owned only
 
   const booksPerShelf = 15; // More books per shelf for natural look
 
+  // Filter books by ownership
+  const getFilteredBooks = () => {
+    if (ownershipFilter === 'owned') {
+      return books.filter(b => b.owned === true);
+    } else if (ownershipFilter === 'wishlist') {
+      return books.filter(b => !b.owned || b.owned === false);
+    }
+    return books; // 'all'
+  };
+
+  const filteredBooks = getFilteredBooks();
+
   // Group books if needed
   const groupedBooks = () => {
-    let sorted = [...books];
+    let sorted = [...filteredBooks];
 
     if (groupBy === 'genre') {
       sorted.sort((a, b) => (a.genre || 'zzz').localeCompare(b.genre || 'zzz'));
@@ -490,89 +596,181 @@ export const Bookshelf: React.FC<BookshelfProps> = ({ books, onEdit, onDelete })
   return (
     <div className="space-y-6">
       {/* Controls */}
-      <div className="flex items-center justify-between bg-white rounded-xl p-4 shadow-sm border border-gray-200">
-        <div className="flex items-center space-x-2">
-          <Filter className="w-5 h-5 text-gray-600" />
-          <span className="text-sm font-medium text-gray-700">Group by:</span>
-          <select
-            value={groupBy}
-            onChange={(e) => setGroupBy(e.target.value as any)}
-            className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="none">None</option>
-            <option value="reading-status">Reading Status</option>
-            <option value="genre">Genre</option>
-            <option value="status">Availability</option>
-            <option value="rating">Rating</option>
-          </select>
-        </div>
-
-        {/* Total count */}
-        <div className="text-sm text-gray-600">
-          {sortedBooks.length} {sortedBooks.length === 1 ? 'book' : 'books'} • {shelves.length} {shelves.length === 1 ? 'shelf' : 'shelves'}
-        </div>
-      </div>
-
-      {/* Shelves */}
-      <div className="space-y-8">
-        {shelves.map((shelf, shelfIndex) => (
-          <div key={shelfIndex} className="relative">
-            {/* Section Header */}
-            {shelf.sectionHeader && (
-              <div className="mb-4">
-                <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2 bg-gradient-to-r from-amber-50 to-transparent py-3 px-4 rounded-lg border-l-4 border-amber-600">
-                  {shelf.sectionHeader}
-                  {shelf.sectionCount && (
-                    <span className="text-sm font-normal text-gray-600">
-                      ({shelf.sectionCount} {shelf.sectionCount === 1 ? 'book' : 'books'})
-                    </span>
-                  )}
-                </h3>
-              </div>
-            )}
-
-            {/* Shelf */}
-            <div className="relative bg-gradient-to-b from-amber-700 to-amber-800 rounded-lg p-4 shadow-lg">
-              {/* Wood grain effect */}
-              <div className="absolute inset-0 bg-gradient-to-r from-amber-600/20 via-transparent to-amber-900/20 rounded-lg"></div>
-
-              {/* Books container - natural shelf look */}
-              <div className="flex items-end justify-start space-x-1 min-h-[320px] overflow-x-auto pb-4 px-2">
-                {/* Left bookend */}
-                <div className="flex-shrink-0 w-8 h-60 bg-gradient-to-b from-stone-600 to-stone-800 rounded-sm shadow-lg mr-3">
-                  <div className="h-full w-full bg-gradient-to-r from-stone-500/20 to-stone-900/20 rounded-sm"></div>
-                </div>
-
-                {/* Books - naturally varying sizes */}
-                {shelf.books.map((book) => (
-                  <BookSpine
-                    key={book.id}
-                    book={book}
-                    onClick={setSelectedBook}
-                  />
-                ))}
-
-                {/* Right bookend */}
-                <div className="flex-shrink-0 w-8 h-60 bg-gradient-to-b from-stone-600 to-stone-800 rounded-sm shadow-lg ml-3">
-                  <div className="h-full w-full bg-gradient-to-r from-stone-900/20 to-stone-500/20 rounded-sm"></div>
-                </div>
-              </div>
-
-              {/* Shelf edge */}
-              <div className="absolute -bottom-2 left-0 right-0 h-4 bg-gradient-to-b from-amber-800 to-amber-900 rounded-b-lg shadow-lg"></div>
-            </div>
+      <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-200 space-y-4">
+        <div className="flex items-center justify-between">
+          {/* View Toggle */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setViewType('grid')}
+              className={`px-3 py-2 rounded-lg flex items-center gap-2 transition-colors ${
+                viewType === 'grid'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              <Grid3x3 className="w-4 h-4" />
+              Grid
+            </button>
+            <button
+              onClick={() => setViewType('shelf')}
+              className={`px-3 py-2 rounded-lg flex items-center gap-2 transition-colors ${
+                viewType === 'shelf'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              <Columns3 className="w-4 h-4" />
+              Shelf
+            </button>
           </div>
-        ))}
+
+          {/* Total count */}
+          <div className="text-sm text-gray-600">
+            {sortedBooks.length} {sortedBooks.length === 1 ? 'book' : 'books'}
+            {viewType === 'shelf' && ` • ${shelves.length} ${shelves.length === 1 ? 'shelf' : 'shelves'}`}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          {/* Ownership Filter */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-700">Show:</span>
+            <button
+              onClick={() => setOwnershipFilter('owned')}
+              className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                ownershipFilter === 'owned'
+                  ? 'bg-green-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              ✓ Owned ({books.filter(b => b.owned === true).length})
+            </button>
+            <button
+              onClick={() => setOwnershipFilter('all')}
+              className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                ownershipFilter === 'all'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              All ({books.length})
+            </button>
+            <button
+              onClick={() => setOwnershipFilter('wishlist')}
+              className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                ownershipFilter === 'wishlist'
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              ♡ Wishlist ({books.filter(b => !b.owned || b.owned === false).length})
+            </button>
+          </div>
+
+          {/* Group by (only show in shelf view) */}
+          {viewType === 'shelf' && (
+            <div className="flex items-center space-x-2">
+              <Filter className="w-4 h-4 text-gray-600" />
+              <span className="text-sm font-medium text-gray-700">Group by:</span>
+              <select
+                value={groupBy}
+                onChange={(e) => setGroupBy(e.target.value as any)}
+                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="none">None</option>
+                <option value="reading-status">Reading Status</option>
+                <option value="genre">Genre</option>
+                <option value="status">Availability</option>
+                <option value="rating">Rating</option>
+              </select>
+            </div>
+          )}
+        </div>
       </div>
+
+      {/* Grid View */}
+      {viewType === 'grid' && (
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-3">
+          {sortedBooks.map((book) => (
+            <BookGridCard
+              key={book.id}
+              book={book}
+              onClick={setSelectedBook}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Shelf View */}
+      {viewType === 'shelf' && (
+        <div className="space-y-8">
+          {shelves.map((shelf, shelfIndex) => (
+            <div key={shelfIndex} className="relative">
+              {/* Section Header */}
+              {shelf.sectionHeader && (
+                <div className="mb-4">
+                  <h3 className="text-2xl font-bold text-gray-800 flex items-center gap-2 bg-gradient-to-r from-amber-50 to-transparent py-3 px-4 rounded-lg border-l-4 border-amber-600">
+                    {shelf.sectionHeader}
+                    {shelf.sectionCount && (
+                      <span className="text-sm font-normal text-gray-600">
+                        ({shelf.sectionCount} {shelf.sectionCount === 1 ? 'book' : 'books'})
+                      </span>
+                    )}
+                  </h3>
+                </div>
+              )}
+
+              {/* Shelf */}
+              <div className="relative bg-gradient-to-b from-amber-700 to-amber-800 rounded-lg p-4 shadow-lg">
+                {/* Wood grain effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-amber-600/20 via-transparent to-amber-900/20 rounded-lg"></div>
+
+                {/* Books container - natural shelf look */}
+                <div className="flex items-end justify-start space-x-1 min-h-[320px] overflow-x-auto pb-4 px-2">
+                  {/* Left bookend */}
+                  <div className="flex-shrink-0 w-8 h-60 bg-gradient-to-b from-stone-600 to-stone-800 rounded-sm shadow-lg mr-3">
+                    <div className="h-full w-full bg-gradient-to-r from-stone-500/20 to-stone-900/20 rounded-sm"></div>
+                  </div>
+
+                  {/* Books - naturally varying sizes */}
+                  {shelf.books.map((book) => (
+                    <BookSpine
+                      key={book.id}
+                      book={book}
+                      onClick={setSelectedBook}
+                    />
+                  ))}
+
+                  {/* Right bookend */}
+                  <div className="flex-shrink-0 w-8 h-60 bg-gradient-to-b from-stone-600 to-stone-800 rounded-sm shadow-lg ml-3">
+                    <div className="h-full w-full bg-gradient-to-r from-stone-900/20 to-stone-500/20 rounded-sm"></div>
+                  </div>
+                </div>
+
+                {/* Shelf edge */}
+                <div className="absolute -bottom-2 left-0 right-0 h-4 bg-gradient-to-b from-amber-800 to-amber-900 rounded-b-lg shadow-lg"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Empty state */}
-      {books.length === 0 && (
+      {filteredBooks.length === 0 && (
         <div className="text-center py-16">
-          <div className="bg-gradient-to-b from-amber-700 to-amber-800 rounded-lg p-12 shadow-lg max-w-md mx-auto">
-            <div className="text-amber-100">
+          <div className="bg-gradient-to-b from-gray-100 to-gray-200 rounded-lg p-12 shadow-lg max-w-md mx-auto">
+            <div className="text-gray-700">
               <Book className="w-16 h-16 mx-auto mb-4 opacity-60" />
-              <h3 className="text-xl font-semibold mb-2">Empty Bookshelf</h3>
-              <p className="text-sm opacity-80">Your books will appear here once you add them to your library.</p>
+              <h3 className="text-xl font-semibold mb-2">
+                {ownershipFilter === 'owned' ? 'No Owned Books' : ownershipFilter === 'wishlist' ? 'No Wishlist Books' : 'No Books'}
+              </h3>
+              <p className="text-sm opacity-80">
+                {ownershipFilter === 'owned'
+                  ? 'Mark books as owned to see them here.'
+                  : ownershipFilter === 'wishlist'
+                  ? 'Books not marked as owned will appear here.'
+                  : 'Your books will appear here once you add them to your library.'}
+              </p>
             </div>
           </div>
         </div>

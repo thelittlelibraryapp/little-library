@@ -33,6 +33,7 @@ interface Book {
   readDate?: string | null;
   readingNotes?: string | null;
   tags?: string | null;
+  owned?: boolean;
 }
 
 interface EditBookModalProps {
@@ -56,7 +57,8 @@ export function EditBookModal({ isOpen, onClose, book, onBookUpdated }: EditBook
     personalRating: 0,
     readDate: '',
     readingNotes: '',
-    tags: ''
+    tags: '',
+    owned: false
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -77,7 +79,8 @@ export function EditBookModal({ isOpen, onClose, book, onBookUpdated }: EditBook
         personalRating: book.personalRating || 0,
         readDate: book.readDate || '',
         readingNotes: book.readingNotes || '',
-        tags: book.tags || ''
+        tags: book.tags || '',
+        owned: book.owned || false
       });
     }
   }, [book]);
@@ -129,7 +132,8 @@ export function EditBookModal({ isOpen, onClose, book, onBookUpdated }: EditBook
         personalRating: formData.personalRating || null,
         readDate: formData.readDate || null,
         readingNotes: formData.readingNotes.trim() || null,
-        tags: formData.tags.trim() || null
+        tags: formData.tags.trim() || null,
+        owned: formData.owned
       };
 
       const response = await fetch(`/api/books/${book.id}`, {
@@ -284,6 +288,22 @@ export function EditBookModal({ isOpen, onClose, book, onBookUpdated }: EditBook
                 rows={3}
                 placeholder="Any additional notes about this book..."
               />
+            </div>
+
+            {/* Ownership Toggle */}
+            <div className="border-t pt-4 mt-4">
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.owned}
+                  onChange={(e) => setFormData(prev => ({ ...prev, owned: e.target.checked }))}
+                  className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                />
+                <div>
+                  <span className="text-sm font-medium text-gray-900">✓ I Own This Book</span>
+                  <p className="text-xs text-gray-500">Check this if you physically own this book and can lend it out</p>
+                </div>
+              </label>
             </div>
 
             {/* Reading Tracker Section */}

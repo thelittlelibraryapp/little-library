@@ -256,7 +256,8 @@ export function GoodreadsImport({ isOpen, onClose, onImportComplete }: Goodreads
             personalRating: book.personalRating,
             readStatus: book.readStatus,
             readDate: book.readDate,
-            tags: book.tags?.join(', ')
+            tags: book.tags?.join(', '),
+            owned: false // Default to wishlist when importing from Goodreads
           };
 
           const response = await fetch('/api/books', {

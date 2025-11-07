@@ -114,7 +114,8 @@ export async function GET(request: NextRequest) {
         readStatus: book.read_status || null,
         readDate: book.read_date || null,
         readingNotes: book.reading_notes || null,
-        tags: book.tags || null
+        tags: book.tags || null,
+        owned: book.owned || false
       };
     }) || [];
 
@@ -159,7 +160,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const {
       title, author, isbn, genre, publicationYear, condition, notes,
-      personalRating, readStatus, readDate, readingNotes, tags
+      personalRating, readStatus, readDate, readingNotes, tags, owned
     } = body;
 
     // Validate required fields
@@ -185,6 +186,7 @@ export async function POST(request: NextRequest) {
         read_date: readDate || null,
         reading_notes: readingNotes || null,
         tags: tags || null,
+        owned: owned !== undefined ? owned : false, // Default to false if not specified
         added_at: new Date().toISOString(),
         updated_at: new Date().toISOString()
       }])

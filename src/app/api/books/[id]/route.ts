@@ -49,7 +49,7 @@ export async function PUT(
     const body = await request.json();
     const {
       title, author, isbn, genre, publicationYear, condition, notes,
-      personalRating, readStatus, readDate, readingNotes, tags
+      personalRating, readStatus, readDate, readingNotes, tags, owned
     } = body;
 
     // Validate required fields
@@ -74,6 +74,7 @@ export async function PUT(
         read_date: readDate || null,
         reading_notes: readingNotes || null,
         tags: tags || null,
+        owned: owned !== undefined ? owned : false,
         updated_at: new Date().toISOString()
       })
       .eq('id', bookId)
@@ -108,7 +109,8 @@ export async function PUT(
       readStatus: updatedBook.read_status || null,
       readDate: updatedBook.read_date || null,
       readingNotes: updatedBook.reading_notes || null,
-      tags: updatedBook.tags || null
+      tags: updatedBook.tags || null,
+      owned: updatedBook.owned || false
     };
 
     return NextResponse.json({ book: transformedBook });
