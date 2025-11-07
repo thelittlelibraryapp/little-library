@@ -36,6 +36,7 @@ export function GoodreadsImport({ isOpen, onClose, onImportComplete }: Goodreads
   const [error, setError] = useState('');
   const [step, setStep] = useState<'upload' | 'preview' | 'importing' | 'complete'>('upload');
   const [importResults, setImportResults] = useState({ success: 0, failed: 0 });
+  const [errorSamples, setErrorSamples] = useState<string[]>([]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -115,9 +116,25 @@ export function GoodreadsImport({ isOpen, onClose, onImportComplete }: Goodreads
         author,
       };
 
-      // ISBN
-      if (isbnIdx >= 0 && values[isbnIdx]) {
-        const isbn = values[isbnIdx].replace(/[^0-9]/g, ''); // Clean ISBN
+      // ISBN - handle both ISBN and ISBN13, prefer ISBN13
+      // Goodreads exports ISBNs in Excel format: ="9781234567890"
+      const cleanISBN = (value: string) => {
+        // Remove Excel formula format: ="..." becomes just the number
+        return value.replace(/^="|"$/g, '').replace(/[^0-9X]/gi, '');
+      };
+
+      // Try ISBN13 first (more accurate)
+      const isbn13Idx = headers.findIndex(h => h.toLowerCase().includes('isbn13'));
+      if (isbn13Idx >= 0 && values[isbn13Idx]) {
+        const isbn = cleanISBN(values[isbn13Idx]);
+        if (isbn.length === 13) {
+          book.isbn = isbn;
+        }
+      }
+
+      // Fall back to ISBN if ISBN13 not found
+      if (!book.isbn && isbnIdx >= 0 && values[isbnIdx]) {
+        const isbn = cleanISBN(values[isbnIdx]);
         if (isbn.length === 10 || isbn.length === 13) {
           book.isbn = isbn;
         }
@@ -136,10 +153,10 @@ export function GoodreadsImport({ isOpen, onClose, onImportComplete }: Goodreads
         }
       }
 
-      // Personal Rating (Goodreads uses 0-5)
+      // Personal Rating (Goodreads uses 0-5, but 0 means unrated)
       if (ratingIdx >= 0 && values[ratingIdx]) {
         const rating = parseInt(values[ratingIdx]);
-        if (!isNaN(rating) && rating >= 0 && rating <= 5) {
+        if (!isNaN(rating) && rating > 0 && rating <= 5) {
           book.personalRating = rating;
         }
       }
@@ -214,6 +231,7 @@ export function GoodreadsImport({ isOpen, onClose, onImportComplete }: Goodreads
 
     let successCount = 0;
     let failedCount = 0;
+    const errors: string[] = [];
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -254,11 +272,30 @@ export function GoodreadsImport({ isOpen, onClose, onImportComplete }: Goodreads
             successCount++;
           } else {
             failedCount++;
-            console.error(`Failed to import: ${book.title}`);
+            const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+            const errorMsg = `${book.title}: ${errorData.error || 'Unknown error'}`;
+
+            // Collect first 5 errors to show in UI
+            if (errors.length < 5) {
+              errors.push(errorMsg);
+            }
+
+            console.error(`❌ Failed to import: ${book.title}`, {
+              status: response.status,
+              error: errorData,
+              bookData
+            });
           }
-        } catch (err) {
+        } catch (err: any) {
           failedCount++;
-          console.error(`Error importing ${book.title}:`, err);
+          const errorMsg = `${book.title}: ${err.message || 'Network error'}`;
+
+          // Collect first 5 errors to show in UI
+          if (errors.length < 5) {
+            errors.push(errorMsg);
+          }
+
+          console.error(`❌ Error importing ${book.title}:`, err);
         }
 
         // Update progress
@@ -266,6 +303,7 @@ export function GoodreadsImport({ isOpen, onClose, onImportComplete }: Goodreads
       }
 
       setImportResults({ success: successCount, failed: failedCount });
+      setErrorSamples(errors);
       setStep('complete');
     } catch (err: any) {
       console.error('Import error:', err);
@@ -518,6 +556,24 @@ export function GoodreadsImport({ isOpen, onClose, onImportComplete }: Goodreads
                   </p>
                 )}
               </div>
+
+              {/* Show error samples if any failed */}
+              {errorSamples.length > 0 && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-left">
+                  <p className="text-sm font-medium text-red-900 mb-2">
+                    ❌ Sample errors (first {errorSamples.length}):
+                  </p>
+                  <ul className="text-xs text-red-800 space-y-1">
+                    {errorSamples.map((error, idx) => (
+                      <li key={idx} className="font-mono">• {error}</li>
+                    ))}
+                  </ul>
+                  <p className="text-xs text-red-700 mt-3">
+                    💡 Open browser console (F12) to see all errors in detail
+                  </p>
+                </div>
+              )}
+
               <button
                 onClick={handleClose}
                 className="px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-semibold hover:from-purple-700 hover:to-pink-700 transition-all"
