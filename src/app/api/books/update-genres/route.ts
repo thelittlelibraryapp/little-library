@@ -100,9 +100,16 @@ export async function POST(request: NextRequest) {
     let updatedCount = 0;
     let failedCount = 0;
     const failedBooks: string[] = [];
+    let consecutiveFailures = 0;
 
     // Process each book with missing genre
     for (const book of books || []) {
+      // Stop if we've hit too many consecutive failures (likely rate limited)
+      if (consecutiveFailures >= 10) {
+        console.log('Stopping: Too many consecutive failures, likely rate limited');
+        break;
+      }
+
       if (book.isbn) {
         try {
           const genre = await fetchGenreFromGoogle(book.isbn);
@@ -121,24 +128,29 @@ export async function POST(request: NextRequest) {
               console.error(`Failed to update genre for book ${book.id}:`, updateError);
               failedCount++;
               failedBooks.push(book.title);
+              consecutiveFailures++;
             } else {
               updatedCount++;
+              consecutiveFailures = 0; // Reset on success
             }
           } else {
             failedCount++;
             failedBooks.push(book.title);
+            consecutiveFailures++;
           }
 
-          // Add a small delay to avoid hitting Google Books API rate limits
-          await new Promise(resolve => setTimeout(resolve, 150));
+          // Longer delay to respect rate limits (2 seconds)
+          await new Promise(resolve => setTimeout(resolve, 2000));
         } catch (error) {
           console.error(`Error processing book ${book.id}:`, error);
           failedCount++;
           failedBooks.push(book.title);
+          consecutiveFailures++;
         }
       } else {
         failedCount++;
         failedBooks.push(book.title);
+        // Don't count "no ISBN" as consecutive API failure
       }
     }
 

@@ -110,13 +110,15 @@ export default function LibraryPage() {
   };
 
   const handleUpdateMissingGenres = async () => {
-    if (!confirm('This will automatically fetch genres from Google Books for books missing genre information. This processes 25 books at a time. Continue?')) {
+    if (!confirm('This will automatically fetch genres from Google Books for books missing genre information.\n\nNote: Google Books API has a 1,000 requests/day limit. If you hit the limit, try again in 24 hours.\n\nTip: Newly imported books auto-fetch genres, so this is mainly for backfilling old data.\n\nThis processes 25 books at a time. Continue?')) {
       return;
     }
 
     setIsUpdatingGenres(true);
     let totalUpdated = 0;
     let totalFailed = 0;
+    let rateLimited = false;
+    let consecutiveEmptyBatches = 0;
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -127,8 +129,8 @@ export default function LibraryPage() {
       let hasMore = true;
       let batchNumber = 1;
 
-      // Process in batches until no more books need updating
-      while (hasMore) {
+      // Process in batches until no more books need updating or rate limited
+      while (hasMore && !rateLimited) {
         const response = await fetch('/api/books/update-genres', {
           method: 'POST',
           headers: {
@@ -149,14 +151,30 @@ export default function LibraryPage() {
 
         console.log(`Batch ${batchNumber} complete: ${result.updatedCount} updated, ${result.failedCount} failed, ${result.totalRemaining} remaining`);
 
-        if (hasMore) {
+        // Detect rate limiting: 3 consecutive batches with 0 updates
+        if (result.updatedCount === 0) {
+          consecutiveEmptyBatches++;
+          if (consecutiveEmptyBatches >= 3) {
+            rateLimited = true;
+            console.log('Rate limit detected: 3 consecutive batches with 0 updates');
+          }
+        } else {
+          consecutiveEmptyBatches = 0; // Reset on successful update
+        }
+
+        if (hasMore && !rateLimited) {
           // Small delay between batches
           await new Promise(resolve => setTimeout(resolve, 1000));
           batchNumber++;
         }
       }
 
-      alert(`Genre update complete!\n\nUpdated: ${totalUpdated} books\nFailed: ${totalFailed} books`);
+      // Show appropriate message
+      if (rateLimited) {
+        alert(`Rate limit reached!\n\nUpdated: ${totalUpdated} books\nFailed: ${totalFailed} books\n\nGoogle Books API limits to 1,000 requests per day. Please try again in 24 hours.\n\nTip: Newly imported books automatically fetch genres, so manual updates are rarely needed.`);
+      } else {
+        alert(`Genre update complete!\n\nUpdated: ${totalUpdated} books\nFailed: ${totalFailed} books`);
+      }
 
       // Refresh the books list
       await fetchBooks();
