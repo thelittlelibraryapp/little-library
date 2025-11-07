@@ -407,7 +407,7 @@ export default function LibraryPage() {
                 <button
                   key={option.value}
                   onClick={() => setFilterStatus(option.value)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+                  className={`px-4 py-3 sm:py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
                     filterStatus === option.value
                       ? `${moodClasses.buttonStyle} text-white shadow-md`
                       : 'bg-slate-100 text-slate-700 hover:bg-slate-200'

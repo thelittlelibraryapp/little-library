@@ -752,14 +752,14 @@ export function BookCard({ book, onEdit, onDelete, isOwner = true, friendOwnerId
         {isOwner && !isFreeToGoodHome && book.status === 'available' && (
           <>
             {onEdit && (
-              <Button size="sm" variant="secondary" onClick={() => onEdit(book)}>
+              <Button size="sm" variant="secondary" onClick={() => onEdit(book)} className="flex-1">
                 <Edit className="w-4 h-4 mr-1" />
                 Edit
               </Button>
             )}
-            
+
             {onDelete && (
-              <Button size="sm" variant="danger" onClick={() => onDelete(book.id)}>
+              <Button size="sm" variant="danger" onClick={() => onDelete(book.id)} className="flex-1">
                 <Trash2 className="w-4 h-4 mr-1" />
                 Delete
               </Button>
@@ -773,7 +773,7 @@ export function BookCard({ book, onEdit, onDelete, isOwner = true, friendOwnerId
             onClick={handleMarkAsReturned}
             variant="secondary"
             size="sm"
-            className="text-blue-600 border-blue-300 hover:bg-blue-50"
+            className="flex-1 text-blue-600 border-blue-300 hover:bg-blue-50"
           >
             Mark as Returned
           </Button>
@@ -785,7 +785,7 @@ export function BookCard({ book, onEdit, onDelete, isOwner = true, friendOwnerId
             onClick={handleConfirmReturn}
             variant="secondary"
             size="sm"
-            className="text-blue-600 border-blue-300 hover:bg-blue-50"
+            className="flex-1 text-blue-600 border-blue-300 hover:bg-blue-50"
           >
             Confirm Return
           </Button>
