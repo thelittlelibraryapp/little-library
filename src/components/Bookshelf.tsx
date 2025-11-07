@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Book, Edit, Trash2, ChevronLeft, ChevronRight, Filter, Star, BookMarked } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Book, Edit, Trash2, ChevronLeft, ChevronRight, Filter, Star, BookMarked, X, Calendar, Tag } from 'lucide-react';
 
 interface BookData {
   id: string;
@@ -34,6 +34,12 @@ interface BookData {
 
 interface BookSpineProps {
   book: BookData;
+  onClick: (book: BookData) => void;
+}
+
+interface BookDetailModalProps {
+  book: BookData;
+  onClose: () => void;
   onEdit: (book: BookData) => void;
   onDelete: (bookId: string) => void;
 }
@@ -56,9 +62,258 @@ const getGenreColor = (genre?: string) => {
   return colors[genreKey as keyof typeof colors] || colors.other;
 };
 
-const BookSpine: React.FC<BookSpineProps> = ({ book, onEdit, onDelete }) => {
-  const [showMenu, setShowMenu] = useState(false);
+// Book Detail Modal Component
+const BookDetailModal: React.FC<BookDetailModalProps> = ({ book, onClose, onEdit, onDelete }) => {
+  const [coverUrl, setCoverUrl] = useState<string | null>(null);
+  const [loadingCover, setLoadingCover] = useState(true);
 
+  useEffect(() => {
+    const fetchCover = async () => {
+      if (!book.isbn) {
+        setLoadingCover(false);
+        return;
+      }
+
+      try {
+        // Try Google Books API
+        const response = await fetch(
+          `https://www.googleapis.com/books/v1/volumes?q=isbn:${book.isbn}`
+        );
+        const data = await response.json();
+
+        if (data.items && data.items[0]?.volumeInfo?.imageLinks) {
+          // Get the highest quality image available
+          const imageLinks = data.items[0].volumeInfo.imageLinks;
+          const coverImage = imageLinks.extraLarge || imageLinks.large || imageLinks.medium || imageLinks.thumbnail;
+          setCoverUrl(coverImage);
+        }
+      } catch (error) {
+        console.error('Error fetching book cover:', error);
+      } finally {
+        setLoadingCover(false);
+      }
+    };
+
+    fetchCover();
+  }, [book.isbn]);
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'available': return 'Available';
+      case 'checked_out': return 'Checked Out';
+      case 'overdue': return 'Overdue';
+      case 'borrowed': return 'Borrowed';
+      case 'return_pending': return 'Return Pending';
+      default: return status;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'available': return 'bg-green-100 text-green-800';
+      case 'checked_out': return 'bg-blue-100 text-blue-800';
+      case 'overdue': return 'bg-red-100 text-red-800';
+      case 'borrowed': return 'bg-purple-100 text-purple-800';
+      case 'return_pending': return 'bg-yellow-100 text-yellow-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 p-2 rounded-full hover:bg-gray-100 transition-colors"
+        >
+          <X className="w-6 h-6 text-gray-600" />
+        </button>
+
+        <div className="p-6">
+          <div className="flex gap-6">
+            {/* Book Cover */}
+            <div className="flex-shrink-0">
+              {loadingCover ? (
+                <div className="w-48 h-72 bg-gradient-to-br from-gray-200 to-gray-300 rounded-lg animate-pulse flex items-center justify-center">
+                  <Book className="w-16 h-16 text-gray-400" />
+                </div>
+              ) : coverUrl ? (
+                <img
+                  src={coverUrl}
+                  alt={book.title}
+                  className="w-48 h-72 object-cover rounded-lg shadow-lg"
+                />
+              ) : (
+                <div className={`w-48 h-72 bg-gradient-to-br ${getGenreColor(book.genre)} rounded-lg shadow-lg flex items-center justify-center p-4`}>
+                  <div className="text-center">
+                    <Book className="w-16 h-16 text-white/80 mx-auto mb-2" />
+                    <p className="text-white text-sm font-semibold">{book.title}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Book Details */}
+            <div className="flex-1 min-w-0">
+              <h2 className="text-2xl font-bold text-gray-900 mb-1">{book.title}</h2>
+              <p className="text-lg text-gray-600 mb-4">by {book.author}</p>
+
+              {/* Status Badge */}
+              <div className="flex items-center gap-2 mb-4">
+                <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(book.status)}`}>
+                  {getStatusLabel(book.status)}
+                </span>
+                {book.is_free_to_good_home && (
+                  <span className="px-3 py-1 rounded-full text-sm font-medium bg-pink-100 text-pink-800">
+                    🎁 Free to Good Home
+                  </span>
+                )}
+              </div>
+
+              {/* Reading Tracker */}
+              {(book.personalRating || book.readStatus) && (
+                <div className="bg-blue-50 rounded-lg p-4 mb-4">
+                  <h3 className="text-sm font-semibold text-blue-900 mb-2">Your Reading Progress</h3>
+                  {book.personalRating && (
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-sm text-blue-800">Rating:</span>
+                      <div className="flex">
+                        {[...Array(5)].map((_, i) => (
+                          <Star
+                            key={i}
+                            className={`w-4 h-4 ${i < book.personalRating! ? 'text-yellow-500 fill-yellow-500' : 'text-gray-300'}`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {book.readStatus && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-blue-800">Status:</span>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                        book.readStatus === 'read' ? 'bg-green-600 text-white' :
+                        book.readStatus === 'currently-reading' ? 'bg-blue-600 text-white' :
+                        'bg-amber-600 text-white'
+                      }`}>
+                        {book.readStatus === 'read' ? 'Read' :
+                         book.readStatus === 'currently-reading' ? 'Currently Reading' :
+                         'Want to Read'}
+                      </span>
+                    </div>
+                  )}
+                  {book.readDate && (
+                    <div className="flex items-center gap-2 mt-2">
+                      <Calendar className="w-4 h-4 text-blue-800" />
+                      <span className="text-sm text-blue-800">
+                        Read on {new Date(book.readDate).toLocaleDateString()}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Book Info Grid */}
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                {book.isbn && (
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">ISBN</p>
+                    <p className="text-sm font-medium text-gray-900">{book.isbn}</p>
+                  </div>
+                )}
+                {book.genre && (
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Genre</p>
+                    <p className="text-sm font-medium text-gray-900">{book.genre}</p>
+                  </div>
+                )}
+                {book.publicationYear && (
+                  <div>
+                    <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Published</p>
+                    <p className="text-sm font-medium text-gray-900">{book.publicationYear}</p>
+                  </div>
+                )}
+                <div>
+                  <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">Condition</p>
+                  <p className="text-sm font-medium text-gray-900 capitalize">{book.condition}</p>
+                </div>
+              </div>
+
+              {/* Tags */}
+              {book.tags && (
+                <div className="mb-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Tag className="w-4 h-4 text-gray-600" />
+                    <p className="text-xs text-gray-500 uppercase tracking-wide">Tags</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {book.tags.split(',').map((tag, i) => (
+                      <span key={i} className="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs">
+                        {tag.trim()}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Notes */}
+              {(book.notes || book.readingNotes) && (
+                <div className="mb-4">
+                  <p className="text-xs text-gray-500 uppercase tracking-wide mb-2">Notes</p>
+                  <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-700 whitespace-pre-wrap">
+                    {book.readingNotes || book.notes}
+                  </div>
+                </div>
+              )}
+
+              {/* Borrower Info */}
+              {book.borrowerName && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+                  <p className="text-sm text-amber-900">
+                    <strong>Borrowed by:</strong> {book.borrowerName}
+                  </p>
+                  {book.dueDate && (
+                    <p className="text-sm text-amber-800 mt-1">
+                      <strong>Due:</strong> {new Date(book.dueDate).toLocaleDateString()}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-3 mt-6 pt-6 border-t">
+            <button
+              onClick={() => {
+                onEdit(book);
+                onClose();
+              }}
+              className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 font-medium"
+            >
+              <Edit className="w-5 h-5" />
+              Edit Book
+            </button>
+            <button
+              onClick={() => {
+                if (confirm(`Are you sure you want to delete "${book.title}"?`)) {
+                  onDelete(book.id);
+                  onClose();
+                }
+              }}
+              className="px-4 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2 font-medium"
+            >
+              <Trash2 className="w-5 h-5" />
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const BookSpine: React.FC<BookSpineProps> = ({ book, onClick }) => {
   const gradient = getGenreColor(book.genre);
 
   const getStatusIndicator = () => {
@@ -83,7 +338,7 @@ const BookSpine: React.FC<BookSpineProps> = ({ book, onEdit, onDelete }) => {
       {/* Wide, readable book spine */}
       <div
         className={`h-64 w-16 relative cursor-pointer transition-all duration-200 hover:scale-105 hover:-translate-y-1 hover:shadow-xl`}
-        onClick={() => setShowMenu(!showMenu)}
+        onClick={() => onClick(book)}
       >
         <div className={`h-full w-full bg-gradient-to-br ${gradient} rounded-sm shadow-md relative overflow-hidden border border-black/10`}>
           {/* Book binding edge */}
@@ -142,58 +397,6 @@ const BookSpine: React.FC<BookSpineProps> = ({ book, onEdit, onDelete }) => {
           <div className="absolute inset-y-0 left-0 w-1/3 bg-gradient-to-r from-white/10 to-transparent"></div>
         </div>
       </div>
-
-      {/* Action menu */}
-      {showMenu && (
-        <>
-          {/* Backdrop to close menu */}
-          <div
-            className="fixed inset-0 z-40"
-            onClick={() => setShowMenu(false)}
-          ></div>
-
-          {/* Menu */}
-          <div className="absolute top-full left-1/2 transform -translate-x-1/2 mt-2 z-50 w-48">
-            <div className="bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden">
-              <div className="p-3 bg-gray-50 border-b">
-                <h5 className="font-semibold text-sm text-gray-900 leading-tight">{book.title}</h5>
-                <p className="text-xs text-gray-600 mt-0.5">by {book.author}</p>
-                {book.personalRating && (
-                  <div className="flex items-center mt-1">
-                    {[...Array(book.personalRating)].map((_, i) => (
-                      <Star key={i} className="w-3 h-3 text-yellow-500 fill-yellow-500" />
-                    ))}
-                  </div>
-                )}
-              </div>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit(book);
-                  setShowMenu(false);
-                }}
-                className="w-full px-4 py-2.5 text-left hover:bg-gray-50 flex items-center space-x-2 text-sm transition-colors"
-              >
-                <Edit className="w-4 h-4 text-gray-600" />
-                <span>Edit Book</span>
-              </button>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  if (confirm(`Delete "${book.title}"?`)) {
-                    onDelete(book.id);
-                  }
-                  setShowMenu(false);
-                }}
-                className="w-full px-4 py-2.5 text-left hover:bg-red-50 flex items-center space-x-2 text-sm text-red-600 transition-colors border-t"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>Delete Book</span>
-              </button>
-            </div>
-          </div>
-        </>
-      )}
     </div>
   );
 };
@@ -207,6 +410,7 @@ interface BookshelfProps {
 export const Bookshelf: React.FC<BookshelfProps> = ({ books, onEdit, onDelete }) => {
   const [currentPage, setCurrentPage] = useState(0);
   const [groupBy, setGroupBy] = useState<'none' | 'genre' | 'status' | 'rating'>('none');
+  const [selectedBook, setSelectedBook] = useState<BookData | null>(null);
 
   const booksPerShelf = 12; // Show 12 books per shelf
   const shelvesPerPage = 3; // Show 3 shelves per page
@@ -309,8 +513,7 @@ export const Bookshelf: React.FC<BookshelfProps> = ({ books, onEdit, onDelete })
                   <BookSpine
                     key={book.id}
                     book={book}
-                    onEdit={onEdit}
-                    onDelete={onDelete}
+                    onClick={setSelectedBook}
                   />
                 ))}
 
@@ -352,6 +555,16 @@ export const Bookshelf: React.FC<BookshelfProps> = ({ books, onEdit, onDelete })
             </div>
           </div>
         </div>
+      )}
+
+      {/* Book Detail Modal */}
+      {selectedBook && (
+        <BookDetailModal
+          book={selectedBook}
+          onClose={() => setSelectedBook(null)}
+          onEdit={onEdit}
+          onDelete={onDelete}
+        />
       )}
     </div>
   );
