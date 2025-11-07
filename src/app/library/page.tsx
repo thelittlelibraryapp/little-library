@@ -49,7 +49,7 @@ export default function LibraryPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [error, setError] = useState('');
-  const [viewMode, setViewMode] = useState<'shelf' | 'grid'>('grid');
+  const [viewMode, setViewMode] = useState<'shelf' | 'grid'>('shelf');
   const [isUpdatingGenres, setIsUpdatingGenres] = useState(false);
 
   const moodClasses = getMoodClasses();
@@ -375,17 +375,6 @@ export default function LibraryPage() {
               <div className="flex items-center space-x-2">
                 <div className="flex bg-slate-100 rounded-lg p-1">
                   <button
-                    onClick={() => setViewMode('grid')}
-                    className={`px-4 py-2 rounded-md flex items-center space-x-2 transition-all ${
-                      viewMode === 'grid'
-                        ? 'bg-white shadow-sm text-slate-900'
-                        : 'text-slate-600 hover:text-slate-900'
-                    }`}
-                  >
-                    <Grid className="w-4 h-4" />
-                    <span className="hidden sm:inline">Grid</span>
-                  </button>
-                  <button
                     onClick={() => setViewMode('shelf')}
                     className={`px-4 py-2 rounded-md flex items-center space-x-2 transition-all ${
                       viewMode === 'shelf'
@@ -394,7 +383,18 @@ export default function LibraryPage() {
                     }`}
                   >
                     <Library className="w-4 h-4" />
-                    <span className="hidden sm:inline">Shelf</span>
+                    <span className="hidden sm:inline">My Bookshelf</span>
+                  </button>
+                  <button
+                    onClick={() => setViewMode('grid')}
+                    className={`px-4 py-2 rounded-md flex items-center space-x-2 transition-all ${
+                      viewMode === 'grid'
+                        ? 'bg-white shadow-sm text-slate-900'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    <Grid className="w-4 h-4" />
+                    <span className="hidden sm:inline">All Books</span>
                   </button>
                 </div>
               </div>
