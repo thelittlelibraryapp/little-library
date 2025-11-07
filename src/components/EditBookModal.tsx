@@ -194,7 +194,7 @@ export function EditBookModal({ isOpen, onClose, book, onBookUpdated }: EditBook
                   type="text"
                   value={formData.title}
                   onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  className="w-full px-3 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                   required
                 />
               </div>
@@ -207,7 +207,7 @@ export function EditBookModal({ isOpen, onClose, book, onBookUpdated }: EditBook
                   type="text"
                   value={formData.author}
                   onChange={(e) => setFormData(prev => ({ ...prev, author: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  className="w-full px-3 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                   required
                 />
               </div>
@@ -222,7 +222,7 @@ export function EditBookModal({ isOpen, onClose, book, onBookUpdated }: EditBook
                   type="text"
                   value={formData.isbn}
                   onChange={(e) => setFormData(prev => ({ ...prev, isbn: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  className="w-full px-3 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                   placeholder="978-0-123456-78-9"
                 />
               </div>
@@ -234,7 +234,7 @@ export function EditBookModal({ isOpen, onClose, book, onBookUpdated }: EditBook
                 <select
                   value={formData.genre}
                   onChange={(e) => setFormData(prev => ({ ...prev, genre: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  className="w-full px-3 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                 >
                   <option value="">Select genre</option>
                   {genreOptions.map(option => (
@@ -253,7 +253,7 @@ export function EditBookModal({ isOpen, onClose, book, onBookUpdated }: EditBook
                   type="number"
                   value={formData.publicationYear}
                   onChange={(e) => setFormData(prev => ({ ...prev, publicationYear: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  className="w-full px-3 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                   placeholder="2023"
                 />
               </div>
@@ -266,7 +266,7 @@ export function EditBookModal({ isOpen, onClose, book, onBookUpdated }: EditBook
               <select
                 value={formData.condition}
                 onChange={(e) => setFormData(prev => ({ ...prev, condition: e.target.value as any }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                className="w-full px-3 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                 required
               >
                 {conditionOptions.map(option => (
@@ -284,7 +284,7 @@ export function EditBookModal({ isOpen, onClose, book, onBookUpdated }: EditBook
               <textarea
                 value={formData.notes}
                 onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                className="w-full px-3 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                 rows={3}
                 placeholder="Any additional notes about this book..."
               />
@@ -318,7 +318,7 @@ export function EditBookModal({ isOpen, onClose, book, onBookUpdated }: EditBook
                   <select
                     value={formData.readStatus}
                     onChange={(e) => setFormData(prev => ({ ...prev, readStatus: e.target.value as any }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                    className="w-full px-3 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                   >
                     <option value="">Not tracking</option>
                     <option value="want-to-read">Want to Read</option>
@@ -335,7 +335,7 @@ export function EditBookModal({ isOpen, onClose, book, onBookUpdated }: EditBook
                     type="date"
                     value={formData.readDate}
                     onChange={(e) => setFormData(prev => ({ ...prev, readDate: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                    className="w-full px-3 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                   />
                 </div>
               </div>
@@ -353,7 +353,7 @@ export function EditBookModal({ isOpen, onClose, book, onBookUpdated }: EditBook
                       className="focus:outline-none transition-transform hover:scale-110"
                     >
                       <Star
-                        className={`w-8 h-8 ${
+                        className={`w-11 h-11 ${
                           star <= formData.personalRating
                             ? 'text-yellow-500 fill-yellow-500'
                             : 'text-gray-300'
@@ -380,7 +380,7 @@ export function EditBookModal({ isOpen, onClose, book, onBookUpdated }: EditBook
                 <textarea
                   value={formData.readingNotes}
                   onChange={(e) => setFormData(prev => ({ ...prev, readingNotes: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  className="w-full px-3 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                   rows={3}
                   placeholder="Your thoughts, favorite quotes, or review..."
                 />
@@ -394,7 +394,7 @@ export function EditBookModal({ isOpen, onClose, book, onBookUpdated }: EditBook
                   type="text"
                   value={formData.tags}
                   onChange={(e) => setFormData(prev => ({ ...prev, tags: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  className="w-full px-3 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                   placeholder="favorites, must-read, book-club (comma-separated)"
                 />
               </div>

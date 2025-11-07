@@ -519,7 +519,7 @@ export function AddBookModal({ isOpen, onClose, onBookAdded }: AddBookModalProps
                   type="text"
                   value={formData.isbn}
                   onChange={(e) => handleISBNChange(e.target.value)}
-                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  className="flex-1 px-3 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                   placeholder="978-0-123456-78-9"
                 />
                 <Button
@@ -528,8 +528,8 @@ export function AddBookModal({ isOpen, onClose, onBookAdded }: AddBookModalProps
                   onClick={startBarcodeScanner}
                   className="whitespace-nowrap"
                 >
-                  <Camera className="w-4 h-4 mr-1" />
-                  Scan
+                  <Camera className="w-4 h-4" />
+                  <span className="ml-1 hidden sm:inline">Scan</span>
                 </Button>
                 <Button
                   type="button"
@@ -540,11 +540,14 @@ export function AddBookModal({ isOpen, onClose, onBookAdded }: AddBookModalProps
                 >
                   {isLookingUp ? (
                     <>
-                      <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin mr-2"></div>
-                      Looking up...
+                      <div className="w-4 h-4 border-2 border-gray-600 border-t-transparent rounded-full animate-spin"></div>
+                      <span className="ml-2 hidden sm:inline">Looking up...</span>
                     </>
                   ) : (
-                    <>📚 Lookup</>
+                    <>
+                      📚
+                      <span className="ml-1 hidden sm:inline">Lookup</span>
+                    </>
                   )}
                 </Button>
               </div>
@@ -565,7 +568,7 @@ export function AddBookModal({ isOpen, onClose, onBookAdded }: AddBookModalProps
                   type="text"
                   value={formData.title}
                   onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  className="w-full px-3 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                   required
                 />
               </div>
@@ -581,7 +584,7 @@ export function AddBookModal({ isOpen, onClose, onBookAdded }: AddBookModalProps
                   type="text"
                   value={formData.author}
                   onChange={(e) => setFormData(prev => ({ ...prev, author: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  className="w-full px-3 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                   required
                 />
               </div>
@@ -598,7 +601,7 @@ export function AddBookModal({ isOpen, onClose, onBookAdded }: AddBookModalProps
                 <select
                   value={formData.genre}
                   onChange={(e) => setFormData(prev => ({ ...prev, genre: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  className="w-full px-3 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                 >
                   <option value="">Select genre</option>
                   {genreOptions.map(option => (
@@ -620,7 +623,7 @@ export function AddBookModal({ isOpen, onClose, onBookAdded }: AddBookModalProps
                   type="number"
                   value={formData.publicationYear}
                   onChange={(e) => setFormData(prev => ({ ...prev, publicationYear: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                  className="w-full px-3 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                   placeholder="2023"
                 />
               </div>
@@ -633,7 +636,7 @@ export function AddBookModal({ isOpen, onClose, onBookAdded }: AddBookModalProps
               <select
                 value={formData.condition}
                 onChange={(e) => setFormData(prev => ({ ...prev, condition: e.target.value as any }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                className="w-full px-3 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                 required
               >
                 {conditionOptions.map(option => (
@@ -651,7 +654,7 @@ export function AddBookModal({ isOpen, onClose, onBookAdded }: AddBookModalProps
               <textarea
                 value={formData.notes}
                 onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                className="w-full px-3 py-3 text-base border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
                 rows={3}
                 placeholder="Any additional notes about this book..."
               />
