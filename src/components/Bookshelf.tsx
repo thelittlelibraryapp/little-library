@@ -684,7 +684,7 @@ export const Bookshelf: React.FC<BookshelfProps> = ({ books, onEdit, onDelete })
           <div className="flex items-center gap-2">
             <button
               onClick={() => setViewType('grid')}
-              className={`px-3 py-2 rounded-lg flex items-center gap-2 transition-colors ${
+              className={`px-3 py-3 sm:py-2 rounded-lg flex items-center gap-2 transition-colors ${
                 viewType === 'grid'
                   ? 'bg-blue-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -695,7 +695,7 @@ export const Bookshelf: React.FC<BookshelfProps> = ({ books, onEdit, onDelete })
             </button>
             <button
               onClick={() => setViewType('shelf')}
-              className={`px-3 py-2 rounded-lg flex items-center gap-2 transition-colors ${
+              className={`px-3 py-3 sm:py-2 rounded-lg flex items-center gap-2 transition-colors ${
                 viewType === 'shelf'
                   ? 'bg-blue-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -715,11 +715,11 @@ export const Bookshelf: React.FC<BookshelfProps> = ({ books, onEdit, onDelete })
 
         <div className="flex items-center justify-between flex-wrap gap-3">
           {/* Ownership Filter */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <span className="text-sm font-medium text-gray-700">Show:</span>
             <button
               onClick={() => setOwnershipFilter('owned')}
-              className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+              className={`px-3 py-3 sm:py-1.5 rounded-lg text-sm transition-colors ${
                 ownershipFilter === 'owned'
                   ? 'bg-green-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -729,7 +729,7 @@ export const Bookshelf: React.FC<BookshelfProps> = ({ books, onEdit, onDelete })
             </button>
             <button
               onClick={() => setOwnershipFilter('all')}
-              className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+              className={`px-3 py-3 sm:py-1.5 rounded-lg text-sm transition-colors ${
                 ownershipFilter === 'all'
                   ? 'bg-blue-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -739,7 +739,7 @@ export const Bookshelf: React.FC<BookshelfProps> = ({ books, onEdit, onDelete })
             </button>
             <button
               onClick={() => setOwnershipFilter('wishlist')}
-              className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
+              className={`px-3 py-3 sm:py-1.5 rounded-lg text-sm transition-colors ${
                 ownershipFilter === 'wishlist'
                   ? 'bg-purple-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -757,7 +757,7 @@ export const Bookshelf: React.FC<BookshelfProps> = ({ books, onEdit, onDelete })
               <select
                 value={groupBy}
                 onChange={(e) => setGroupBy(e.target.value as any)}
-                className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-3 py-3 sm:py-1.5 text-base sm:text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="none">None</option>
                 <option value="reading-status">Reading Status</option>
@@ -772,7 +772,7 @@ export const Bookshelf: React.FC<BookshelfProps> = ({ books, onEdit, onDelete })
 
       {/* Grid View */}
       {viewType === 'grid' && (
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 2xl:grid-cols-10 gap-3">
           {sortedBooks.map((book) => (
             <BookGridCard
               key={book.id}
@@ -809,9 +809,9 @@ export const Bookshelf: React.FC<BookshelfProps> = ({ books, onEdit, onDelete })
                 <div className="absolute inset-0 bg-gradient-to-r from-amber-600/20 via-transparent to-amber-900/20 rounded-lg"></div>
 
                 {/* Books container - natural shelf look */}
-                <div className="flex items-end justify-start space-x-1 min-h-[320px] overflow-x-auto pb-4 px-2">
+                <div className="flex items-end justify-start space-x-1 min-h-[240px] sm:min-h-[280px] lg:min-h-[320px] overflow-x-auto pb-4 px-2">
                   {/* Left bookend */}
-                  <div className="flex-shrink-0 w-8 h-60 bg-gradient-to-b from-stone-600 to-stone-800 rounded-sm shadow-lg mr-3">
+                  <div className="flex-shrink-0 w-8 h-48 sm:h-56 lg:h-60 bg-gradient-to-b from-stone-600 to-stone-800 rounded-sm shadow-lg mr-3">
                     <div className="h-full w-full bg-gradient-to-r from-stone-500/20 to-stone-900/20 rounded-sm"></div>
                   </div>
 
@@ -825,7 +825,7 @@ export const Bookshelf: React.FC<BookshelfProps> = ({ books, onEdit, onDelete })
                   ))}
 
                   {/* Right bookend */}
-                  <div className="flex-shrink-0 w-8 h-60 bg-gradient-to-b from-stone-600 to-stone-800 rounded-sm shadow-lg ml-3">
+                  <div className="flex-shrink-0 w-8 h-48 sm:h-56 lg:h-60 bg-gradient-to-b from-stone-600 to-stone-800 rounded-sm shadow-lg ml-3">
                     <div className="h-full w-full bg-gradient-to-r from-stone-900/20 to-stone-500/20 rounded-sm"></div>
                   </div>
                 </div>
