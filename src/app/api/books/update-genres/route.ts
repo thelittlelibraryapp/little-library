@@ -49,7 +49,7 @@ async function fetchGenreFromGoogle(isbn: string): Promise<string | undefined> {
   return undefined;
 }
 
-// POST - Update missing genres for all books
+// POST - Update missing genres for books (in batches to avoid timeout)
 export async function POST(request: NextRequest) {
   try {
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -78,19 +78,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Library not found' }, { status: 404 });
     }
 
-    // Get all books with missing genres (where genre is null or empty)
+    // Get books with missing genres (limit to 25 per request to avoid timeout)
     const { data: books, error: booksError } = await supabase
       .from('books')
-      .select('id, isbn, genre')
+      .select('id, isbn, genre, title')
       .eq('library_id', library.id)
-      .or('genre.is.null,genre.eq.');
+      .or('genre.is.null,genre.eq.')
+      .limit(25);
 
     if (booksError) {
       return NextResponse.json({ error: booksError.message }, { status: 500 });
     }
 
+    // Check total remaining
+    const { count: totalRemaining } = await supabase
+      .from('books')
+      .select('id', { count: 'exact', head: true })
+      .eq('library_id', library.id)
+      .or('genre.is.null,genre.eq.');
+
     let updatedCount = 0;
     let failedCount = 0;
+    const failedBooks: string[] = [];
 
     // Process each book with missing genre
     for (const book of books || []) {
@@ -102,27 +111,34 @@ export async function POST(request: NextRequest) {
             // Update the book with the fetched genre
             const { error: updateError } = await supabase
               .from('books')
-              .update({ genre })
+              .update({
+                genre,
+                updated_at: new Date().toISOString()
+              })
               .eq('id', book.id);
 
             if (updateError) {
               console.error(`Failed to update genre for book ${book.id}:`, updateError);
               failedCount++;
+              failedBooks.push(book.title);
             } else {
               updatedCount++;
             }
           } else {
             failedCount++;
+            failedBooks.push(book.title);
           }
 
           // Add a small delay to avoid hitting Google Books API rate limits
-          await new Promise(resolve => setTimeout(resolve, 100));
+          await new Promise(resolve => setTimeout(resolve, 150));
         } catch (error) {
           console.error(`Error processing book ${book.id}:`, error);
           failedCount++;
+          failedBooks.push(book.title);
         }
       } else {
         failedCount++;
+        failedBooks.push(book.title);
       }
     }
 
@@ -130,7 +146,10 @@ export async function POST(request: NextRequest) {
       message: `Updated ${updatedCount} books. ${failedCount} books couldn't be updated.`,
       updatedCount,
       failedCount,
-      totalProcessed: (books || []).length
+      totalProcessed: (books || []).length,
+      totalRemaining: (totalRemaining || 0) - updatedCount,
+      hasMore: ((totalRemaining || 0) - updatedCount) > 0,
+      failedBooks: failedBooks.slice(0, 5) // Return first 5 failed books
     }, { status: 200 });
 
   } catch (error) {

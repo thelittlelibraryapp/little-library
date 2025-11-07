@@ -559,13 +559,34 @@ export const Bookshelf: React.FC<BookshelfProps> = ({ books, onEdit, onDelete })
         return;
       }
 
+      // Find the book in our current list to get all its data
+      const book = books.find(b => b.id === bookId);
+      if (!book) {
+        throw new Error('Book not found');
+      }
+
+      // Send all required fields along with the ownership update
       const response = await fetch(`/api/books/${bookId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({ owned })
+        body: JSON.stringify({
+          title: book.title,
+          author: book.author,
+          condition: book.condition,
+          isbn: book.isbn,
+          genre: book.genre,
+          publicationYear: book.publicationYear,
+          notes: book.notes,
+          personalRating: book.personalRating,
+          readStatus: book.readStatus,
+          readDate: book.readDate,
+          readingNotes: book.readingNotes,
+          tags: book.tags,
+          owned: owned
+        })
       });
 
       if (!response.ok) {

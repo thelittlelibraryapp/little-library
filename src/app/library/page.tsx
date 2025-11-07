@@ -110,11 +110,13 @@ export default function LibraryPage() {
   };
 
   const handleUpdateMissingGenres = async () => {
-    if (!confirm('This will automatically fetch genres from Google Books for all books missing genre information. This may take a few minutes. Continue?')) {
+    if (!confirm('This will automatically fetch genres from Google Books for books missing genre information. This processes 25 books at a time. Continue?')) {
       return;
     }
 
     setIsUpdatingGenres(true);
+    let totalUpdated = 0;
+    let totalFailed = 0;
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -122,20 +124,39 @@ export default function LibraryPage() {
         throw new Error('Not authenticated');
       }
 
-      const response = await fetch('/api/books/update-genres', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`
+      let hasMore = true;
+      let batchNumber = 1;
+
+      // Process in batches until no more books need updating
+      while (hasMore) {
+        const response = await fetch('/api/books/update-genres', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`
+          }
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(errorText || 'Failed to update genres');
         }
-      });
 
-      const result = await response.json();
+        const result = await response.json();
 
-      if (!response.ok) {
-        throw new Error(result.error || 'Failed to update genres');
+        totalUpdated += result.updatedCount;
+        totalFailed += result.failedCount;
+        hasMore = result.hasMore;
+
+        console.log(`Batch ${batchNumber} complete: ${result.updatedCount} updated, ${result.failedCount} failed, ${result.totalRemaining} remaining`);
+
+        if (hasMore) {
+          // Small delay between batches
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          batchNumber++;
+        }
       }
 
-      alert(`Genre update complete!\n\nUpdated: ${result.updatedCount} books\nFailed: ${result.failedCount} books\nTotal processed: ${result.totalProcessed} books`);
+      alert(`Genre update complete!\n\nUpdated: ${totalUpdated} books\nFailed: ${totalFailed} books`);
 
       // Refresh the books list
       await fetchBooks();
