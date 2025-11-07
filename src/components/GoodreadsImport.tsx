@@ -239,15 +239,69 @@ export function GoodreadsImport({ isOpen, onClose, onImportComplete }: Goodreads
         throw new Error('Not authenticated');
       }
 
+      // Helper function to fetch genre from Google Books API
+      const fetchGenreFromGoogle = async (isbn: string): Promise<string | undefined> => {
+        if (!isbn) return undefined;
+
+        try {
+          const response = await fetch(
+            `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`
+          );
+          const data = await response.json();
+
+          if (data.items && data.items[0]?.volumeInfo?.categories) {
+            // Google Books returns categories array, take first one
+            const category = data.items[0].volumeInfo.categories[0];
+
+            // Map Google Books categories to our genre list
+            const genreMapping: Record<string, string> = {
+              'fiction': 'fiction',
+              'literary fiction': 'fiction',
+              'science fiction': 'science-fiction',
+              'fantasy': 'fantasy',
+              'mystery': 'mystery',
+              'thriller': 'mystery',
+              'romance': 'romance',
+              'biography': 'biography',
+              'autobiography': 'biography',
+              'history': 'history',
+              'self-help': 'self-help',
+              'business': 'business',
+              'non-fiction': 'non-fiction'
+            };
+
+            const lowerCategory = category.toLowerCase();
+            for (const [key, value] of Object.entries(genreMapping)) {
+              if (lowerCategory.includes(key)) {
+                return value;
+              }
+            }
+
+            // Default to non-fiction if we can't categorize
+            return 'other';
+          }
+        } catch (error) {
+          console.error('Error fetching genre from Google Books:', error);
+        }
+        return undefined;
+      };
+
       // Import books one by one (show progress)
       for (let i = 0; i < parsedBooks.length; i++) {
         const book = parsedBooks[i];
 
         try {
+          // Fetch genre from Google Books if ISBN exists and no genre from Goodreads
+          let genre = book.genre;
+          if (book.isbn && !genre) {
+            genre = await fetchGenreFromGoogle(book.isbn);
+          }
+
           const bookData = {
             title: book.title,
             author: book.author,
             isbn: book.isbn,
+            genre: genre, // Include fetched or existing genre
             publisher: book.publisher,
             publicationYear: book.publicationYear,
             condition: 'good', // Default condition

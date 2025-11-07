@@ -50,6 +50,7 @@ export default function LibraryPage() {
   const [filterStatus, setFilterStatus] = useState('all');
   const [error, setError] = useState('');
   const [viewMode, setViewMode] = useState<'shelf' | 'grid'>('grid');
+  const [isUpdatingGenres, setIsUpdatingGenres] = useState(false);
 
   const moodClasses = getMoodClasses();
 
@@ -106,6 +107,45 @@ export default function LibraryPage() {
     ));
     setIsEditModalOpen(false);
     setEditingBook(null);
+  };
+
+  const handleUpdateMissingGenres = async () => {
+    if (!confirm('This will automatically fetch genres from Google Books for all books missing genre information. This may take a few minutes. Continue?')) {
+      return;
+    }
+
+    setIsUpdatingGenres(true);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('Not authenticated');
+      }
+
+      const response = await fetch('/api/books/update-genres', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`
+        }
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Failed to update genres');
+      }
+
+      alert(`Genre update complete!\n\nUpdated: ${result.updatedCount} books\nFailed: ${result.failedCount} books\nTotal processed: ${result.totalProcessed} books`);
+
+      // Refresh the books list
+      await fetchBooks();
+
+    } catch (error: any) {
+      console.error('Genre update error:', error);
+      alert(`Error updating genres: ${error.message}`);
+    } finally {
+      setIsUpdatingGenres(false);
+    }
   };
 
   const handleEditBook = (book: Book) => {
@@ -223,6 +263,15 @@ export default function LibraryPage() {
               >
                 <FileText className="w-5 h-5" />
                 <span>Import from Goodreads</span>
+              </button>
+              <button
+                onClick={handleUpdateMissingGenres}
+                disabled={isUpdatingGenres}
+                className="bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white px-6 py-3 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Automatically fetch missing genres from Google Books"
+              >
+                <FileText className="w-5 h-5" />
+                <span>{isUpdatingGenres ? 'Updating...' : 'Update Genres'}</span>
               </button>
               <button
                 onClick={() => setIsScanModalOpen(true)}

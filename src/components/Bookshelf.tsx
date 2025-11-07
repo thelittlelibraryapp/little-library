@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Book, Edit, Trash2, ChevronLeft, ChevronRight, Filter, Star, BookMarked, X, Calendar, Tag, Grid3x3, Columns3, Check } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
 
 interface BookData {
   id: string;
@@ -67,10 +68,12 @@ const getGenreColor = (genre?: string) => {
 interface BookGridCardProps {
   book: BookData;
   onClick: (book: BookData) => void;
+  onToggleOwnership: (bookId: string, owned: boolean) => void;
 }
 
-const BookGridCard: React.FC<BookGridCardProps> = ({ book, onClick }) => {
+const BookGridCard: React.FC<BookGridCardProps> = ({ book, onClick, onToggleOwnership }) => {
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
+  const [isTogglingOwnership, setIsTogglingOwnership] = useState(false);
   const gradient = getGenreColor(book.genre);
 
   useEffect(() => {
@@ -95,12 +98,21 @@ const BookGridCard: React.FC<BookGridCardProps> = ({ book, onClick }) => {
     fetchCover();
   }, [book.isbn]);
 
+  const handleToggleOwnership = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent opening the modal
+    setIsTogglingOwnership(true);
+    try {
+      await onToggleOwnership(book.id, !book.owned);
+    } finally {
+      setIsTogglingOwnership(false);
+    }
+  };
+
   return (
     <div
-      onClick={() => onClick(book)}
       className="group relative cursor-pointer transition-all duration-200 hover:scale-105 hover:z-10"
     >
-      <div className="relative aspect-[2/3] rounded-md overflow-hidden shadow-md hover:shadow-xl">
+      <div className="relative aspect-[2/3] rounded-md overflow-hidden shadow-md hover:shadow-xl" onClick={() => onClick(book)}>
         {coverUrl ? (
           <img
             src={coverUrl}
@@ -133,6 +145,22 @@ const BookGridCard: React.FC<BookGridCardProps> = ({ book, onClick }) => {
             ))}
           </div>
         )}
+
+        {/* Ownership toggle button - appears on hover */}
+        <div className="absolute top-1 left-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={handleToggleOwnership}
+            disabled={isTogglingOwnership}
+            className={`px-2 py-1 text-xs font-medium rounded-full transition-colors ${
+              book.owned
+                ? 'bg-red-500 hover:bg-red-600 text-white'
+                : 'bg-green-500 hover:bg-green-600 text-white'
+            } disabled:opacity-50`}
+            title={book.owned ? 'Remove from owned' : 'Mark as owned'}
+          >
+            {isTogglingOwnership ? '...' : book.owned ? 'Owned' : 'Own?'}
+          </button>
+        </div>
       </div>
 
       {/* Hover tooltip */}
@@ -522,6 +550,39 @@ export const Bookshelf: React.FC<BookshelfProps> = ({ books, onEdit, onDelete })
 
   const filteredBooks = getFilteredBooks();
 
+  // Toggle ownership handler
+  const handleToggleOwnership = async (bookId: string, owned: boolean) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        alert('Please sign in to update book ownership');
+        return;
+      }
+
+      const response = await fetch(`/api/books/${bookId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({ owned })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update ownership');
+      }
+
+      // Trigger a refresh by calling onEdit with updated book data
+      const result = await response.json();
+      if (result.book) {
+        onEdit(result.book);
+      }
+    } catch (error) {
+      console.error('Error toggling ownership:', error);
+      alert('Failed to update book ownership');
+    }
+  };
+
   // Group books if needed
   const groupedBooks = () => {
     let sorted = [...filteredBooks];
@@ -696,6 +757,7 @@ export const Bookshelf: React.FC<BookshelfProps> = ({ books, onEdit, onDelete })
               key={book.id}
               book={book}
               onClick={setSelectedBook}
+              onToggleOwnership={handleToggleOwnership}
             />
           ))}
         </div>
